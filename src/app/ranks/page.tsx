@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Navbar from "@/components/Navbar"
 
 const ranks = [
   { name: "Ember", xp: 0, color: "text-gray-400", bg: "bg-gray-500/20", border: "border-gray-500/40", desc: "The spark begins." },
@@ -16,17 +17,7 @@ const ranks = [
 export default function RanksPage() {
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
-      <nav className="border-b border-[#1c1c28] bg-[#050508]/90 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#FF5C00] to-[#FF8A00] flex items-center justify-center font-bold text-black text-sm">
-              C
-            </div>
-            <span className="font-bold text-xl tracking-wide">CITADEL</span>
-          </Link>
-          <Link href="/" className="text-sm text-gray-400 hover:text-white">← Back</Link>
-        </div>
-      </nav>
+      <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-16">
         <div className="text-center mb-16">
@@ -37,7 +28,6 @@ export default function RanksPage() {
           </p>
         </div>
 
-        {/* XP Rules */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 mb-12 text-center">
           <h2 className="font-bold text-lg mb-4 text-[#FF5C00]">XP Rules</h2>
           <div className="flex justify-center gap-12 text-sm">
@@ -52,7 +42,6 @@ export default function RanksPage() {
           </div>
         </div>
 
-        {/* Rank List */}
         <div className="space-y-4">
           {ranks.map((rank, i) => (
             <div

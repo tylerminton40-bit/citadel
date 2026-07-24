@@ -1,7 +1,7 @@
 import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
-import Link from "next/link"
 import { redirect } from "next/navigation"
+import Navbar from "@/components/Navbar"
 import { getRank, getNextRank } from "@/lib/ranks"
 
 export default async function ProfilePage() {
@@ -33,20 +33,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
-      <nav className="border-b border-[#1c1c28] bg-[#050508]/90 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[#FF5C00] to-[#FF8A00] flex items-center justify-center font-bold text-black text-sm">
-              C
-            </div>
-            <span className="font-bold text-xl tracking-wide">CITADEL</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/ranks" className="text-sm text-gray-400 hover:text-white">Ranks</Link>
-            <a href="/api/logout" className="text-sm text-red-400 hover:text-red-300">Logout</a>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <main className="max-w-2xl mx-auto px-4 py-16">
         <div className={`bg-[#111118] border ${rank.border} rounded-2xl p-8 text-center`}>
