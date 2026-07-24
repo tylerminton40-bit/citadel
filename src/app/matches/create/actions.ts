@@ -11,7 +11,7 @@ export async function createMatch(formData: FormData) {
 
   const format = formData.get("format") as string
   const region = formData.get("region") as string
-  const notes = formData.get("notes") as string
+  // const notes = formData.get("notes") as string
 
   const ruleset = format === "6v6" ? "Normal" : "Street Brawl"
 
