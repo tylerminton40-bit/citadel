@@ -11,6 +11,7 @@ type Match = {
   ruleset: string
   status: string
   created_at: string
+  best_of?: string
   creator: {
     steam_name: string
     avatar_url: string | null
@@ -28,7 +29,6 @@ export default async function MatchesPage() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Get open matches
   const { data: matches } = await supabase
     .from("matches")
     .select("*, creator:profiles!matches_creator_id_fkey(steam_name, avatar_url, xp)")
@@ -58,15 +58,14 @@ export default async function MatchesPage() {
           </Link>
         </div>
 
-        {/* Open Matches */}
         <div className="space-y-4">
           {typedMatches.length > 0 ? (
             typedMatches.map((match) => (
-        <Link
-  href={`/matches/${match.id}`}
-  key={match.id}
-  className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 flex items-center justify-between hover:border-[#FF5C00]/40 transition block"
->
+              <Link
+                href={`/matches/${match.id}`}
+                key={match.id}
+                className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 flex items-center justify-between hover:border-[#FF5C00]/40 transition block"
+              >
                 <div className="flex items-center gap-4">
                   {match.creator?.avatar_url && (
                     <img
@@ -80,7 +79,7 @@ export default async function MatchesPage() {
                       {match.creator?.steam_name || "Unknown"}
                     </div>
                     <div className="text-sm text-gray-400">
-                      {match.format} • {match.region} • {match.ruleset}
+                      {match.format} • {match.best_of || "Bo1"} • {match.region} • {match.ruleset}
                     </div>
                   </div>
                 </div>
@@ -89,19 +88,7 @@ export default async function MatchesPage() {
                   <span className="text-xs px-2.5 py-1 rounded-full bg-[#FF5C00]/15 text-[#FF5C00] font-medium">
                     {match.format === "6v6" ? "Normal" : "Street Brawl"}
                   </span>
-                  <button className="btn-primary px-4 py-2 rounded-lg text-sm">
-                    Accept
-                  </button>
+                  <span className="text-sm text-gray-400">View →</span>
                 </div>
-              </div>
+              </Link>
             ))
-          ) : (
-            <div className="text-center py-20 text-gray-500">
-              No open matches right now. Create one!
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  )
-}
