@@ -176,7 +176,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           
           <div className="h-48 overflow-y-auto bg-[#08080d] rounded-xl p-4 mb-4 space-y-3">
             {messages && messages.length > 0 ? (
-              messages.map((msg: any) => (
+              messages.map((msg: { id: string; message: string; sender: { steam_name: string } | null }) => (
                 <div key={msg.id} className="text-sm">
                   <span className="font-medium text-[#FF5C00]">{msg.sender?.steam_name}: </span>
                   <span className="text-gray-300">{msg.message}</span>
