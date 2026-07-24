@@ -62,10 +62,11 @@ export default async function MatchesPage() {
         <div className="space-y-4">
           {typedMatches.length > 0 ? (
             typedMatches.map((match) => (
-              <div
-                key={match.id}
-                className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 flex items-center justify-between hover:border-[#FF5C00]/40 transition"
-              >
+        <Link
+  href={`/matches/${match.id}`}
+  key={match.id}
+  className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 flex items-center justify-between hover:border-[#FF5C00]/40 transition block"
+>
                 <div className="flex items-center gap-4">
                   {match.creator?.avatar_url && (
                     <img
