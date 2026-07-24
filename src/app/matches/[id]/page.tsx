@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
-import { cancelMatch } from "../actions"
+import { cancelMatch, acceptMatch, setPrivateCode, sendMessage } from "../actions"
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -15,6 +15,12 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, steam_name")
+    .eq("steam_id", steamId)
+    .single()
 
   const { data: match } = await supabase
     .from("matches")
@@ -35,7 +41,15 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     )
   }
 
-  const isCreator = match.creator?.id && steamId // simplified check for now
+  const { data: messages } = await supabase
+    .from("match_messages")
+    .select("*, sender:profiles(steam_name)")
+    .eq("match_id", id)
+    .order("created_at", { ascending: true })
+
+  const isCreator = profile?.id === match.creator_id
+  const isOpponent = profile?.id === match.opponent_id
+  const isParticipant = isCreator || isOpponent
   const isOpen = match.status === "open"
   const isAccepted = match.status === "accepted"
 
@@ -44,7 +58,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-12">
-        {/* Status Bar */}
+        {/* Status */}
         <div className="flex items-center justify-between mb-8">
           <div className="text-sm text-gray-400">
             {match.format} • {match.best_of} • {match.region}
@@ -61,7 +75,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         {/* Head to Head */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-3xl p-8 mb-8">
           <div className="grid grid-cols-3 items-center gap-6">
-            {/* Creator */}
             <div className="text-center">
               {match.creator?.avatar_url && (
                 <img src={match.creator.avatar_url} alt="" className="w-24 h-24 rounded-full mx-auto mb-3 border-4 border-[#FF5C00]" />
@@ -70,14 +83,12 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               <div className="text-sm text-gray-400 mt-1">Host</div>
             </div>
 
-            {/* VS */}
             <div className="text-center">
               <div className="text-4xl font-black text-[#FF5C00] mb-2">VS</div>
               <div className="text-sm text-gray-400">{match.map}</div>
               <div className="text-xs text-gray-500 mt-1">{match.best_of}</div>
             </div>
 
-            {/* Opponent */}
             <div className="text-center">
               {match.opponent?.avatar_url ? (
                 <img src={match.opponent.avatar_url} alt="" className="w-24 h-24 rounded-full mx-auto mb-3 border-4 border-purple-500" />
@@ -92,7 +103,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Match Info + Code */}
+        {/* Info + Code */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
             <h3 className="font-bold mb-4 text-[#FF5C00]">Match Info</h3>
@@ -101,7 +112,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               <div className="flex justify-between"><span className="text-gray-400">Best Of</span><span>{match.best_of}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Region</span><span>{match.region}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Mode</span><span>{match.ruleset}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Map</span><span>{match.map}</span></div>
             </div>
           </div>
 
@@ -111,55 +121,85 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               <div className="text-2xl font-mono font-bold tracking-widest text-center py-4 bg-[#08080d] rounded-xl">
                 {match.private_code}
               </div>
+            ) : isParticipant && isAccepted ? (
+              <form action={setPrivateCode.bind(null, id)} className="space-y-3">
+                <input
+                  name="code"
+                  type="text"
+                  placeholder="Enter private match code..."
+                  className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
+                />
+                <button type="submit" className="btn-primary w-full py-2 rounded-xl text-sm">
+                  Post Code
+                </button>
+              </form>
             ) : (
               <p className="text-sm text-gray-400 text-center py-6">
-                Host will post the private match code here after accepting.
+                Code will appear here after the match is accepted.
               </p>
             )}
           </div>
         </div>
 
-{/* Actions */}
-<div className="flex gap-4 justify-center mb-10">
-  {isOpen && (
-    <>
-      <button className="btn-primary px-8 py-3 rounded-xl">
-        Accept Match
-      </button>
+        {/* Actions */}
+        <div className="flex gap-4 justify-center mb-10">
+          {isOpen && !isCreator && (
+            <form action={async () => {
+              "use server"
+              await acceptMatch(id)
+            }}>
+              <button type="submit" className="btn-primary px-8 py-3 rounded-xl">
+                Accept Match
+              </button>
+            </form>
+          )}
 
-      <form action={async () => {
-        "use server"
-        await cancelMatch(id)
-      }}>
-        <button type="submit" className="px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition">
-          Cancel Match
-        </button>
-      </form>
-    </>
-  )}
+          {isOpen && isCreator && (
+            <form action={async () => {
+              "use server"
+              await cancelMatch(id)
+            }}>
+              <button type="submit" className="px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition">
+                Cancel Match
+              </button>
+            </form>
+          )}
 
-  <Link href="/matches" className="px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
-    Back to Matches
-  </Link>
-</div>
+          <Link href="/matches" className="px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
+            Back to Matches
+          </Link>
+        </div>
 
-        {/* Chat Placeholder */}
+        {/* Chat */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
           <h3 className="font-bold mb-4">Match Chat</h3>
-          <div className="h-40 bg-[#08080d] rounded-xl mb-4 flex items-center justify-center text-gray-500 text-sm">
-            Chat coming next
+          
+          <div className="h-48 overflow-y-auto bg-[#08080d] rounded-xl p-4 mb-4 space-y-3">
+            {messages && messages.length > 0 ? (
+              messages.map((msg: any) => (
+                <div key={msg.id} className="text-sm">
+                  <span className="font-medium text-[#FF5C00]">{msg.sender?.steam_name}: </span>
+                  <span className="text-gray-300">{msg.message}</span>
+                </div>
+              ))
+            ) : (
+              <div className="text-gray-500 text-sm text-center py-8">No messages yet</div>
+            )}
           </div>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Type a message..."
-              className="flex-1 bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF5C00]"
-              disabled
-            />
-            <button className="btn-primary px-5 py-2.5 rounded-xl text-sm" disabled>
-              Send
-            </button>
-          </div>
+
+          {isParticipant && (
+            <form action={sendMessage.bind(null, id)} className="flex gap-3">
+              <input
+                name="message"
+                type="text"
+                placeholder="Type a message..."
+                className="flex-1 bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF5C00]"
+              />
+              <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
+                Send
+              </button>
+            </form>
+          )}
         </div>
       </main>
     </div>
