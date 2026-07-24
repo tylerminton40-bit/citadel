@@ -19,11 +19,7 @@ export default async function CreateMatchPage() {
           {/* Format */}
           <div>
             <label className="block text-sm text-gray-400 mb-2">Format</label>
-            <select
-              name="format"
-              required
-              className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
-            >
+            <select name="format" required className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]">
               <option value="1v1">1v1 (Street Brawl)</option>
               <option value="2v2">2v2 (Street Brawl)</option>
               <option value="3v3">3v3 (Street Brawl)</option>
@@ -32,14 +28,21 @@ export default async function CreateMatchPage() {
             </select>
           </div>
 
+          {/* Best Of */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Best Of</label>
+            <select name="best_of" required className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]">
+              <option value="Bo1">Best of 1</option>
+              <option value="Bo3">Best of 3</option>
+              <option value="Bo5">Best of 5</option>
+              <option value="Bo7">Best of 7</option>
+            </select>
+          </div>
+
           {/* Region */}
           <div>
             <label className="block text-sm text-gray-400 mb-2">Region</label>
-            <select
-              name="region"
-              required
-              className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
-            >
+            <select name="region" required className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]">
               <option value="NA East">NA East</option>
               <option value="NA West">NA West</option>
               <option value="EU">EU</option>
@@ -52,12 +55,7 @@ export default async function CreateMatchPage() {
           {/* Notes */}
           <div>
             <label className="block text-sm text-gray-400 mb-2">Notes (optional)</label>
-            <input
-              name="notes"
-              type="text"
-              placeholder="Any extra rules or info..."
-              className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
-            />
+            <input name="notes" type="text" placeholder="Any extra rules..." className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]" />
           </div>
 
           <button type="submit" className="btn-primary w-full py-3 rounded-xl font-medium">

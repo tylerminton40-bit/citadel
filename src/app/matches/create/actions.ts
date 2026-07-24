@@ -10,17 +10,18 @@ export async function createMatch(formData: FormData) {
   if (!steamId) redirect("/")
 
   const format = formData.get("format") as string
+  const bestOf = formData.get("best_of") as string
   const region = formData.get("region") as string
-  // const notes = formData.get("notes") as string
+  const notes = formData.get("notes") as string
 
   const ruleset = format === "6v6" ? "Normal" : "Street Brawl"
+  const map = format === "6v6" ? "Normal Map" : "Street Brawl"
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Get creator profile id
   const { data: profile } = await supabase
     .from("profiles")
     .select("id")
@@ -32,10 +33,12 @@ export async function createMatch(formData: FormData) {
   await supabase.from("matches").insert({
     creator_id: profile.id,
     format,
+    best_of: bestOf,
     region,
     ruleset,
+    map,
+    notes: notes || null,
     status: "open",
-    // notes can be added later if you expand the table
   })
 
   redirect("/matches")
