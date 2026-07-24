@@ -62,8 +62,8 @@ export default async function MatchesPage() {
           {typedMatches.length > 0 ? (
             typedMatches.map((match) => (
               <Link
-                href={`/matches/${match.id}`}
                 key={match.id}
+                href={`/matches/${match.id}`}
                 className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 flex items-center justify-between hover:border-[#FF5C00]/40 transition block"
               >
                 <div className="flex items-center gap-4">
@@ -92,3 +92,13 @@ export default async function MatchesPage() {
                 </div>
               </Link>
             ))
+          ) : (
+            <div className="text-center py-20 text-gray-500">
+              No open matches right now. Create one!
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  )
+}
