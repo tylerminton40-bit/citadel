@@ -1,14 +1,14 @@
-export default function Home({
+export default async function Home({
   searchParams,
 }: {
-  searchParams: { loggedin?: string; name?: string }
+  searchParams: Promise<{ loggedin?: string; name?: string }>
 }) {
-  const isLoggedIn = searchParams.loggedin === "1"
-  const steamName = searchParams.name || null
+  const params = await searchParams
+  const isLoggedIn = params.loggedin === "1"
+  const steamName = params.name || null
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
-      {/* Nav */}
       <nav className="border-b border-[#1c1c28] bg-[#050508]/90 backdrop-blur sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
