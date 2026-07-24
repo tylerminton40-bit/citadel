@@ -159,7 +159,6 @@ export async function reportResult(matchId: string, formData: FormData) {
 
   if (!profile) return
 
-  // Get the match
   const { data: match } = await supabase
     .from("matches")
     .select("*")
@@ -168,34 +167,63 @@ export async function reportResult(matchId: string, formData: FormData) {
 
   if (!match || match.status !== "accepted") return
 
-  // Only participants can report
-  if (profile.id !== match.creator_id && profile.id !== match.opponent_id) return
+  const isCreator = profile.id === match.creator_id
+  const isOpponent = profile.id === match.opponent_id
+  if (!isCreator && !isOpponent) return
 
-  const winnerId = winner === "creator" ? match.creator_id : match.opponent_id
-  const loserId = winner === "creator" ? match.opponent_id : match.creator_id
+  // Save this player's report
+  const updateData: any = {}
+  if (isCreator) updateData.creator_report = winner
+  if (isOpponent) updateData.opponent_report = winner
 
-  // Update match
   await supabase
     .from("matches")
-    .update({
-      status: "completed",
-      winner_id: winnerId,
-      completed_at: new Date().toISOString()
-    })
+    .update(updateData)
     .eq("id", matchId)
 
-  // Give XP
-  // Winner +30, Loser +10
-  if (winnerId) {
-    await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
-    await supabase.rpc("increment_wins", { profile_id: winnerId })
-  }
-  if (loserId) {
-    await supabase.rpc("increment_xp", { profile_id: loserId, amount: 10 })
-    await supabase.rpc("increment_losses", { profile_id: loserId })
+  // Re-fetch to see both reports
+  const { data: updated } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("id", matchId)
+    .single()
+
+  if (!updated) return
+
+  // Both have reported
+  if (updated.creator_report && updated.opponent_report) {
+    if (updated.creator_report === updated.opponent_report) {
+      // They agree → complete the match
+      const winnerId = updated.creator_report === "creator" ? updated.creator_id : updated.opponent_id
+      const loserId = updated.creator_report === "creator" ? updated.opponent_id : updated.creator_id
+
+      await supabase
+        .from("matches")
+        .update({
+          status: "completed",
+          winner_id: winnerId,
+          completed_at: new Date().toISOString()
+        })
+        .eq("id", matchId)
+
+      // Give XP
+      if (winnerId) {
+        await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
+        await supabase.rpc("increment_wins", { profile_id: winnerId })
+      }
+      if (loserId) {
+        await supabase.rpc("increment_xp", { profile_id: loserId, amount: 10 })
+        await supabase.rpc("increment_losses", { profile_id: loserId })
+      }
+    } else {
+      // They disagree → disputed
+      await supabase
+        .from("matches")
+        .update({ status: "disputed" })
+        .eq("id", matchId)
+    }
   }
 
   revalidatePath(`/matches/${matchId}`)
   revalidatePath("/profile")
 }
-

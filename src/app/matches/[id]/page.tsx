@@ -3,7 +3,8 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
-import { cancelMatch, acceptMatch, setPrivateCode, sendMessage, reportResult } from "../actions"
+import { cancelMatch, acceptMatch, reportResult } from "../actions"
+import MatchLive from "@/components/MatchLive"
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -105,46 +106,29 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Info + Code */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
-            <h3 className="font-bold mb-4 text-[#FF5C00]">Match Info</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-gray-400">Format</span><span>{match.format}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Best Of</span><span>{match.best_of}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Region</span><span>{match.region}</span></div>
-              <div className="flex justify-between"><span className="text-gray-400">Mode</span><span>{match.ruleset}</span></div>
-            </div>
-          </div>
-
-          <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
-            <h3 className="font-bold mb-4 text-purple-400">Private Match Code</h3>
-            {match.private_code ? (
-              <div className="text-2xl font-mono font-bold tracking-widest text-center py-4 bg-[#08080d] rounded-xl">
-                {match.private_code}
-              </div>
-            ) : isCreator && isAccepted ? (
-              <form action={setPrivateCode.bind(null, id)} className="space-y-3">
-                <input
-                  name="code"
-                  type="text"
-                  placeholder="Enter private match code..."
-                  className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
-                />
-                <button type="submit" className="btn-primary w-full py-2 rounded-xl text-sm">
-                  Post Code
-                </button>
-              </form>
-            ) : (
-              <p className="text-sm text-gray-400 text-center py-6">
-                {isAccepted ? "Waiting for host to post the code..." : "Code appears after match is accepted."}
-              </p>
-            )}
+        {/* Match Info */}
+        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 mb-6">
+          <h3 className="font-bold mb-4 text-[#FF5C00]">Match Info</h3>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="flex justify-between"><span className="text-gray-400">Format</span><span>{match.format}</span></div>
+            <div className="flex justify-between"><span className="text-gray-400">Best Of</span><span>{match.best_of}</span></div>
+            <div className="flex justify-between"><span className="text-gray-400">Region</span><span>{match.region}</span></div>
+            <div className="flex justify-between"><span className="text-gray-400">Mode</span><span>{match.ruleset}</span></div>
           </div>
         </div>
 
+        {/* Live Code + Chat */}
+        <MatchLive
+          matchId={id}
+          initialCode={match.private_code}
+          initialMessages={messages || []}
+          isCreator={isCreator}
+          isAccepted={isAccepted}
+          isParticipant={isParticipant}
+        />
+
         {/* Actions */}
-        <div className="flex flex-wrap gap-4 justify-center mb-10">
+        <div className="flex flex-wrap gap-4 justify-center mt-10">
           {isOpen && !isCreator && (
             <form action={async () => { "use server"; await acceptMatch(id) }}>
               <button type="submit" className="btn-primary px-8 py-3 rounded-xl">Accept Match</button>
@@ -159,7 +143,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             </form>
           )}
 
-          {/* Report Result - only when accepted */}
           {isAccepted && isParticipant && (
             <form action={reportResult.bind(null, id)} className="flex gap-3 items-center">
               <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm">
@@ -176,38 +159,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           <Link href="/matches" className="px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
             Back to Matches
           </Link>
-        </div>
-
-        {/* Chat */}
-        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
-          <h3 className="font-bold mb-4">Match Chat</h3>
-          
-          <div className="h-48 overflow-y-auto bg-[#08080d] rounded-xl p-4 mb-4 space-y-3">
-            {messages && messages.length > 0 ? (
-              messages.map((msg: { id: string; message: string; sender: { steam_name: string } | null }) => (
-                <div key={msg.id} className="text-sm">
-                  <span className="font-medium text-[#FF5C00]">{msg.sender?.steam_name}: </span>
-                  <span className="text-gray-300">{msg.message}</span>
-                </div>
-              ))
-            ) : (
-              <div className="text-gray-500 text-sm text-center py-8">No messages yet</div>
-            )}
-          </div>
-
-          {isParticipant && (
-            <form action={sendMessage.bind(null, id)} className="flex gap-3">
-              <input
-                name="message"
-                type="text"
-                placeholder="Type a message..."
-                className="flex-1 bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF5C00]"
-              />
-              <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
-                Send
-              </button>
-            </form>
-          )}
         </div>
       </main>
     </div>
