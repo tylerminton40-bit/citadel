@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  --background: #08080d;
+  --foreground: #e5e7eb;
+}
+
+body {
+  background: #08080d;
+  color: #e5e7eb;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #FF5C00, #FF8A00);
+  color: #000;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+
+.glow-orange {
+  box-shadow: 0 0 24px rgba(255, 92, 0, 0.35);
+}
