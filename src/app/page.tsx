@@ -37,6 +37,9 @@ export default async function Home() {
                 <Link href="#" className="text-sm text-gray-400 hover:text-white">
                   Match Finder
                 </Link>
+<Link href="/ranks" className="text-sm text-gray-400 hover:text-white">
+  Ranks
+</Link>
                 <Link
                   href="/profile"
                   className="flex items-center gap-2 hover:opacity-80 transition"
