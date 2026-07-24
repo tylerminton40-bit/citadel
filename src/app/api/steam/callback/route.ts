@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { cookies } from "next/headers"
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -41,8 +42,16 @@ export async function GET(request: NextRequest) {
     { onConflict: "steam_id" }
   )
 
-  // Redirect back to the same domain the user came from
-  return NextResponse.redirect(
-    new URL(`/?loggedin=1&name=${encodeURIComponent(steamName)}`, request.url)
-  )
+  // Set a cookie so the user stays logged in
+  const cookieStore = await cookies()
+  cookieStore.set("citadel_steam_id", steamId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    path: "/",
+  })
+
+  // Clean redirect (no ugly query params)
+  return NextResponse.redirect(new URL("/", request.url))
 }
