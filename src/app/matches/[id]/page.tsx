@@ -3,7 +3,6 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
-import { cancelMatch, acceptMatch, setPrivateCode, sendMessage } from "../actions"
 import { cancelMatch, acceptMatch, setPrivateCode, sendMessage, reportResult } from "../actions"
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
