@@ -52,6 +52,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const isParticipant = isCreator || isOpponent
   const isOpen = match.status === "open"
   const isAccepted = match.status === "accepted"
+  const isCompleted = match.status === "completed"
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
@@ -66,6 +67,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           <div className={`px-3 py-1 rounded-full text-xs font-medium ${
             isOpen ? "bg-yellow-500/20 text-yellow-400" :
             isAccepted ? "bg-emerald-500/20 text-emerald-400" :
+            isCompleted ? "bg-blue-500/20 text-blue-400" :
             "bg-gray-500/20 text-gray-400"
           }`}>
             {match.status.toUpperCase()}
@@ -121,7 +123,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               <div className="text-2xl font-mono font-bold tracking-widest text-center py-4 bg-[#08080d] rounded-xl">
                 {match.private_code}
               </div>
-            ) : isParticipant && isAccepted ? (
+            ) : isCreator && isAccepted ? (
               <form action={setPrivateCode.bind(null, id)} className="space-y-3">
                 <input
                   name="code"
@@ -135,44 +137,38 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               </form>
             ) : (
               <p className="text-sm text-gray-400 text-center py-6">
-                Code will appear here after the match is accepted.
+                {isAccepted ? "Waiting for host to post the code..." : "Code appears after match is accepted."}
               </p>
             )}
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex gap-4 justify-center mb-10">
+        <div className="flex flex-wrap gap-4 justify-center mb-10">
           {isOpen && !isCreator && (
-            <form action={async () => {
-              "use server"
-              await acceptMatch(id)
-            }}>
-              <button type="submit" className="btn-primary px-8 py-3 rounded-xl">
-                Accept Match
-              </button>
-{isAccepted && isParticipant && (
-  <form action={reportResult.bind(null, id)} className="flex gap-3">
-    <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2 text-sm">
-      <option value="">Who won?</option>
-      <option value="creator">{match.creator?.steam_name} won</option>
-      <option value="opponent">{match.opponent?.steam_name} won</option>
-    </select>
-    <button type="submit" className="btn-primary px-5 py-2 rounded-xl text-sm">
-      Report Result
-    </button>
-  </form>
-)}
+            <form action={async () => { "use server"; await acceptMatch(id) }}>
+              <button type="submit" className="btn-primary px-8 py-3 rounded-xl">Accept Match</button>
             </form>
           )}
 
           {isOpen && isCreator && (
-            <form action={async () => {
-              "use server"
-              await cancelMatch(id)
-            }}>
+            <form action={async () => { "use server"; await cancelMatch(id) }}>
               <button type="submit" className="px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition">
                 Cancel Match
+              </button>
+            </form>
+          )}
+
+          {/* Report Result - only when accepted */}
+          {isAccepted && isParticipant && (
+            <form action={reportResult.bind(null, id)} className="flex gap-3 items-center">
+              <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm">
+                <option value="">Who won?</option>
+                <option value="creator">{match.creator?.steam_name} won</option>
+                <option value="opponent">{match.opponent?.steam_name} won</option>
+              </select>
+              <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
+                Report Result
               </button>
             </form>
           )}
