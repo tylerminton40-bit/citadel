@@ -22,33 +22,44 @@ export default async function Home() {
       <Navbar />
 
       {/* Hero */}
-      <section className="pt-24 pb-20 text-center px-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF5C00]/10 border border-[#FF5C00]/30 text-[#FF5C00] text-xs font-semibold mb-6">
-          <span className="w-2 h-2 rounded-full bg-[#FF5C00] animate-pulse"></span>
-          LIVE • Deadlock Competitive Platform
+      <section className="relative pt-28 pb-24 text-center px-4 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#FF5C00]/5 to-transparent pointer-events-none" />
+        
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF5C00]/10 border border-[#FF5C00]/30 text-[#FF5C00] text-xs font-semibold mb-6">
+            <span className="w-2 h-2 rounded-full bg-[#FF5C00] animate-pulse"></span>
+            LIVE • Deadlock Competitive Platform
+          </div>
+
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight tracking-tight">
+            COMPETE FOR<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF5C00] to-[#FF8A00]">
+              GLORY
+            </span>
+          </h1>
+
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10">
+            The premier platform for Deadlock XP matches, exclusive ranks, and competitive ladders.
+            Login with Steam. Climb the Citadel ranks. Prove yourself.
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            {profile ? (
+              <>
+                <Link href="/matches" className="btn-primary px-10 py-4 rounded-xl text-base glow-orange font-semibold">
+                  Find a Match
+                </Link>
+                <Link href="/ranks" className="px-8 py-4 rounded-xl border border-[#1c1c28] hover:border-[#FF5C00]/50 transition">
+                  View Ranks
+                </Link>
+              </>
+            ) : (
+              <a href="/api/steam/login" className="btn-primary px-10 py-4 rounded-xl text-base glow-orange font-semibold">
+                Login with Steam
+              </a>
+            )}
+          </div>
         </div>
-
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-tight">
-          COMPETE FOR<br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF5C00] to-[#FF8A00]">
-            GLORY
-          </span>
-        </h1>
-
-        <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10">
-          The premier platform for Deadlock XP matches, exclusive ranks, and competitive ladders.
-          Login with Steam. Climb the Citadel ranks. Prove yourself.
-        </p>
-
-        {profile ? (
-          <Link href="/profile" className="btn-primary px-8 py-3.5 rounded-xl text-base inline-block glow-orange">
-            Go to Profile
-          </Link>
-        ) : (
-          <a href="/api/steam/login" className="btn-primary px-8 py-3.5 rounded-xl text-base inline-block glow-orange">
-            Login with Steam
-          </a>
-        )}
       </section>
 
       {/* Features */}
@@ -56,15 +67,21 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-3 gap-6">
           <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 hover:border-[#FF5C00]/40 transition">
             <div className="text-[#FF5C00] font-bold text-xl mb-2">XP Matches</div>
-            <p className="text-gray-400 text-sm">Free competitive matches. Win or lose, you still earn XP and climb the ranks.</p>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              Free competitive matches. Win or lose, you still earn XP and climb the exclusive Citadel ranks.
+            </p>
           </div>
           <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 hover:border-[#FF5C00]/40 transition">
-            <div className="text-purple-400 font-bold text-xl mb-2">Exclusive Ranks</div>
-            <p className="text-gray-400 text-sm">Our own ranking system from Ember to Eternal. Unique colors and prestige.</p>
+            <div className="text-purple-400 font-bold text-xl mb-2">Street Brawl & Normal</div>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              1v1 to 4v4 play Street Brawl. 6v6 plays normal mode. Clean and competitive.
+            </p>
           </div>
           <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 hover:border-[#FF5C00]/40 transition">
             <div className="text-emerald-400 font-bold text-xl mb-2">Steam Verified</div>
-            <p className="text-gray-400 text-sm">Login with Steam only. Your real name and avatar are always shown.</p>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              Login with Steam only. Your real name and avatar are always shown. No smurfs.
+            </p>
           </div>
         </div>
       </section>
@@ -72,13 +89,15 @@ export default async function Home() {
       {/* CTA */}
       <section className="py-20 border-t border-[#1c1c28] text-center">
         <h2 className="text-3xl font-bold mb-4">Ready to enter the Citadel?</h2>
-        <p className="text-gray-400 mb-8">Join the competitive Deadlock community today.</p>
+        <p className="text-gray-400 mb-8 max-w-lg mx-auto">
+          Join the growing competitive Deadlock community and start climbing today.
+        </p>
         {profile ? (
-          <Link href="/ranks" className="btn-primary px-8 py-3 rounded-xl inline-block">
-            View Ranks
+          <Link href="/matches" className="btn-primary px-8 py-3.5 rounded-xl inline-block">
+            Find a Match
           </Link>
         ) : (
-          <a href="/api/steam/login" className="btn-primary px-8 py-3 rounded-xl inline-block">
+          <a href="/api/steam/login" className="btn-primary px-8 py-3.5 rounded-xl inline-block">
             Login with Steam
           </a>
         )}

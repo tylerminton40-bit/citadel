@@ -51,14 +51,25 @@ export async function acceptMatch(matchId: string) {
 
   if (!profile) redirect("/")
 
-  // Set opponent and mark as accepted
+  // Check if player already has an active match
+  const { data: existing } = await supabase
+    .from("matches")
+    .select("id")
+    .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+    .in("status", ["open", "accepted"])
+    .limit(1)
+
+  if (existing && existing.length > 0) {
+    redirect("/matches?error=already_in_match")
+  }
+
   await supabase
     .from("matches")
     .update({
       opponent_id: profile.id,
       status: "accepted",
       accepted_at: new Date().toISOString(),
-      host_id: profile.id // temporary - we can improve host selection later
+      host_id: profile.id
     })
     .eq("id", matchId)
     .eq("status", "open")

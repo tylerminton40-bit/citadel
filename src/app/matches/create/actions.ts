@@ -29,6 +29,18 @@ export async function createMatch(formData: FormData) {
 
   if (!profile) redirect("/")
 
+// Check if player already has an active match
+const { data: existing } = await supabase
+  .from("matches")
+  .select("id")
+  .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+  .in("status", ["open", "accepted"])
+  .limit(1)
+
+if (existing && existing.length > 0) {
+  redirect("/matches?error=already_in_match")
+}
+
   await supabase.from("matches").insert({
     creator_id: profile.id,
     format,
