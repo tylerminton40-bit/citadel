@@ -37,9 +37,9 @@ export default async function Navbar() {
           <Link href="/ranks" className="text-sm text-gray-400 hover:text-white transition">
             Ranks
           </Link>
-          <Link href="#" className="text-sm text-gray-400 hover:text-white transition">
-            Match Finder
-          </Link>
+         <Link href="/matches" className="text-sm text-gray-400 hover:text-white transition">
+  Match Finder
+</Link>
 
           {profile ? (
             <div className="flex items-center gap-3">
