@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
 import { cancelMatch, acceptMatch, setPrivateCode, sendMessage } from "../actions"
+import { cancelMatch, acceptMatch, setPrivateCode, sendMessage, reportResult } from "../actions"
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -151,6 +152,18 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               <button type="submit" className="btn-primary px-8 py-3 rounded-xl">
                 Accept Match
               </button>
+{isAccepted && isParticipant && (
+  <form action={reportResult.bind(null, id)} className="flex gap-3">
+    <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2 text-sm">
+      <option value="">Who won?</option>
+      <option value="creator">{match.creator?.steam_name} won</option>
+      <option value="opponent">{match.opponent?.steam_name} won</option>
+    </select>
+    <button type="submit" className="btn-primary px-5 py-2 rounded-xl text-sm">
+      Report Result
+    </button>
+  </form>
+)}
             </form>
           )}
 
