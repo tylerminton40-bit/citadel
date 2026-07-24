@@ -172,7 +172,7 @@ export async function reportResult(matchId: string, formData: FormData) {
   if (!isCreator && !isOpponent) return
 
   // Save this player's report
-  const updateData: any = {}
+  const updateData: { creator_report?: string; opponent_report?: string } = {}
   if (isCreator) updateData.creator_report = winner
   if (isOpponent) updateData.opponent_report = winner
 
