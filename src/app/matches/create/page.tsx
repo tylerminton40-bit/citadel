@@ -52,11 +52,6 @@ export default async function CreateMatchPage() {
             </select>
           </div>
 
-          {/* Notes */}
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">Notes (optional)</label>
-            <input name="notes" type="text" placeholder="Any extra rules..." className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]" />
-          </div>
 
           <button type="submit" className="btn-primary w-full py-3 rounded-xl font-medium">
             Post Match

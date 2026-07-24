@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
+import { cancelMatch } from "../actions"
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -118,17 +119,29 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex gap-4 justify-center mb-10">
-          {isOpen && (
-            <button className="btn-primary px-8 py-3 rounded-xl">
-              Accept Match
-            </button>
-          )}
-          <Link href="/matches" className="px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
-            Back to Matches
-          </Link>
-        </div>
+{/* Actions */}
+<div className="flex gap-4 justify-center mb-10">
+  {isOpen && (
+    <>
+      <button className="btn-primary px-8 py-3 rounded-xl">
+        Accept Match
+      </button>
+
+      <form action={async () => {
+        "use server"
+        await cancelMatch(id)
+      }}>
+        <button type="submit" className="px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition">
+          Cancel Match
+        </button>
+      </form>
+    </>
+  )}
+
+  <Link href="/matches" className="px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
+    Back to Matches
+  </Link>
+</div>
 
         {/* Chat Placeholder */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
