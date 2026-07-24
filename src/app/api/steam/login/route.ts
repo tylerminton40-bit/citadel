@@ -1,8 +1,12 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
-export async function GET() {
-  const returnUrl = "http://localhost:3000/api/steam/callback"
-  const realm = "http://localhost:3000"
+export async function GET(request: NextRequest) {
+  const host = request.headers.get("host") || "playcitadel.pro"
+  const protocol = host.includes("localhost") ? "http" : "https"
+  const baseUrl = `${protocol}://${host}`
+
+  const returnUrl = `${baseUrl}/api/steam/callback`
+  const realm = baseUrl
 
   const params = new URLSearchParams({
     "openid.ns": "http://specs.openid.net/auth/2.0",

@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { error } = await supabase.from("profiles").upsert(
+  await supabase.from("profiles").upsert(
     {
       steam_id: steamId,
       steam_name: steamName,
@@ -41,11 +41,7 @@ export async function GET(request: NextRequest) {
     { onConflict: "steam_id" }
   )
 
-  if (error) {
-    console.error("Supabase error:", error)
-  }
-
-  // For now redirect back with the name so we can see it worked
+  // Redirect back to the same domain the user came from
   return NextResponse.redirect(
     new URL(`/?loggedin=1&name=${encodeURIComponent(steamName)}`, request.url)
   )
