@@ -55,6 +55,31 @@ export default async function Home() {
     )
   }
 
+// ✅ PUT THE XP TODAY CODE RIGHT HERE
+const rank = getRank(profile.xp || 0)
+
+const startOfDay = new Date()
+startOfDay.setHours(0, 0, 0, 0)
+
+const { data: todaysMatches } = await supabase
+  .from("matches")
+  .select("winner_id, creator_id, opponent_id, status, completed_at")
+  .eq("status", "completed")
+  .gte("completed_at", startOfDay.toISOString())
+  .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+
+let xpToday = 0
+if (todaysMatches) {
+  for (const m of todaysMatches) {
+    if (m.winner_id === profile.id) {
+      xpToday += 30
+    } else if (m.creator_id === profile.id || m.opponent_id === profile.id) {
+      xpToday -= 20
+    }
+  }
+}
+
+// then the rest of your openMatches / yourMatches queries...
   const rank = getRank(profile.xp || 0)
 
   const { data: openMatches } = await supabase
@@ -100,9 +125,13 @@ export default async function Home() {
               <div className="flex items-center gap-2 text-sm">
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${rank.bg} ${rank.color}`}>{rank.name}</span>
                 <span className="text-gray-400">{profile.xp} XP</span>
-                <span className="text-gray-600">•</span>
-                <span className="text-emerald-400">{profile.wins}W</span>
-                <span className="text-red-400">{profile.losses}L</span>
+<span className="text-gray-600">•</span>
+<span className={xpToday > 0 ? "text-emerald-400" : xpToday < 0 ? "text-red-400" : "text-gray-400"}>
+  {xpToday > 0 ? `+${xpToday}` : xpToday} today
+</span>
+<span className="text-gray-600">•</span>
+<span className="text-emerald-400">{profile.wins}W</span>
+<span className="text-red-400">{profile.losses}L</span>
               </div>
             </div>
           </div>
