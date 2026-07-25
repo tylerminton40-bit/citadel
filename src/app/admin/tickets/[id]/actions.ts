@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
+import { createNotification } from "@/lib/notifications"
 
 const ADMIN_STEAM_ID = "76561199480856629"
 
@@ -81,6 +82,25 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
       completed_at: new Date().toISOString(),
     })
     .eq("id", matchId)
+	
+	// Get the ticket to find the creator
+const { data: ticket } = await supabase
+  .from("tickets")
+  .select("creator_id")
+  .eq("id", ticketId)
+  .single()
+
+if (ticket?.creator_id) {
+  await createNotification({
+    userId: ticket.creator_id,
+    type: "ticket_resolved",
+    title: "Ticket Resolved",
+    message: response || "Your ticket has been resolved",
+    link: `/tickets/${ticketId}`
+  })
+}
+
+
 
   // Give new XP + wins/losses
   if (newWinnerId) {
@@ -101,6 +121,25 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
       resolved_at: new Date().toISOString(),
     })
     .eq("id", ticketId)
+	
+	// Get the ticket to find the creator
+const { data: ticket } = await supabase
+  .from("tickets")
+  .select("creator_id")
+  .eq("id", ticketId)
+  .single()
+
+if (ticket?.creator_id) {
+  await createNotification({
+    userId: ticket.creator_id,
+    type: "ticket_resolved",
+    title: "Ticket Resolved",
+    message: response || "Your ticket has been resolved",
+    link: `/tickets/${ticketId}`
+  })
+}
+
+
 
   revalidatePath(`/admin/tickets/${ticketId}`)
   revalidatePath("/admin/tickets")

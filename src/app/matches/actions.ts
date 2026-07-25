@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
+import { createNotification } from "@/lib/notifications"
 
 export async function cancelMatch(matchId: string) {
   const cookieStore = await cookies()
@@ -17,6 +18,7 @@ export async function cancelMatch(matchId: string) {
 
   const { data: profile } = await supabase
     .from("profiles")
+    .select("id")
     .select("id")
     .eq("steam_id", steamId)
     .single()
@@ -45,7 +47,7 @@ export async function acceptMatch(matchId: string) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id")
+    .select("id, steam_name")
     .eq("steam_id", steamId)
     .single()
 
@@ -63,20 +65,39 @@ export async function acceptMatch(matchId: string) {
     redirect("/matches?error=already_in_match")
   }
 
+  // Get the match first so we know the creator
+  const { data: match } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("id", matchId)
+    .eq("status", "open")
+    .single()
+
+  if (!match) redirect("/matches")
+
   await supabase
     .from("matches")
     .update({
       opponent_id: profile.id,
       status: "accepted",
       accepted_at: new Date().toISOString(),
-      host_id: profile.id
+      host_id: match.creator_id
     })
     .eq("id", matchId)
-    .eq("status", "open")
+
+  // Notify the creator
+  await createNotification({
+    userId: match.creator_id,
+    type: "match_accepted",
+    title: "Match Accepted",
+    message: `${profile.steam_name} accepted your match`,
+    link: `/matches/${matchId}`
+  })
 
   revalidatePath(`/matches/${matchId}`)
   redirect(`/matches/${matchId}`)
 }
+
 
 export async function setPrivateCode(matchId: string, formData: FormData) {
   const code = formData.get("code") as string
@@ -181,6 +202,7 @@ export async function reportResult(matchId: string, formData: FormData) {
     .update(updateData)
     .eq("id", matchId)
 
+
   // Re-fetch to see both reports
   const { data: updated } = await supabase
     .from("matches")
@@ -189,6 +211,23 @@ export async function reportResult(matchId: string, formData: FormData) {
     .single()
 
   if (!updated) return
+
+// Notify the other player that a report was submitted
+const otherPlayerId = isCreator ? updated.opponent_id : updated.creator_id
+if (otherPlayerId) {
+  await createNotification({
+    userId: otherPlayerId,
+    type: "result_reported",
+    title: "Result Reported",
+    message: "Your opponent submitted a result report",
+    link: `/matches/${matchId}`
+  })
+}
+
+// If the match just completed (both agreed)
+if (updated.creator_report && updated.opponent_report && updated.creator_report === updated.opponent_report) {
+  // notify both that match is complete (optional extra)
+}
 
 // Both have reported
 if (updated.creator_report && updated.opponent_report) {
