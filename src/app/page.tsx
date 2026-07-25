@@ -24,21 +24,21 @@ export default async function Home() {
     return (
       <div className="min-h-screen bg-[#08080d] text-gray-200">
         <Navbar />
-        <section className="relative pt-28 pb-28 text-center px-4">
+        <section className="relative pt-24 sm:pt-28 pb-20 sm:pb-28 text-center px-4">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#FF5C00]/15 via-transparent to-transparent pointer-events-none" />
           <div className="relative z-10 max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF5C00]/10 border border-[#FF5C00]/30 text-[#FF5C00] text-xs font-semibold mb-8">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF5C00]/10 border border-[#FF5C00]/30 text-[#FF5C00] text-xs font-semibold mb-6 sm:mb-8">
               <span className="w-2 h-2 rounded-full bg-[#FF5C00] animate-pulse"></span>
               LIVE • Deadlock Competitive Platform
             </div>
-            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-[1.1]">
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold mb-5 sm:mb-6 leading-[1.1]">
               COMPETE FOR<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF5C00] to-[#FF8A00]">GLORY</span>
             </h1>
-            <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-12">
+            <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-8 sm:mb-12 px-2">
               XP matches, exclusive ranks, disputes, and a real competitive ladder for Deadlock.
             </p>
-            <a href="/api/steam/login" className="btn-primary px-10 py-4 rounded-xl text-base font-semibold glow-orange">
+            <a href="/api/steam/login" className="btn-primary px-8 sm:px-10 py-3.5 sm:py-4 rounded-xl text-sm sm:text-base font-semibold glow-orange inline-block">
               Login with Steam
             </a>
           </div>
@@ -48,6 +48,7 @@ export default async function Home() {
   }
 
   const rank = getRank(profile.xp || 0)
+  const nextRank = getNextRank(profile.xp || 0)
 
   // XP today
   const startOfDay = new Date()
@@ -63,11 +64,8 @@ export default async function Home() {
   let xpToday = 0
   if (todaysMatches) {
     for (const m of todaysMatches) {
-      if (m.winner_id === profile.id) {
-        xpToday += 30
-      } else if (m.creator_id === profile.id || m.opponent_id === profile.id) {
-        xpToday -= 20
-      }
+      if (m.winner_id === profile.id) xpToday += 30
+      else if (m.creator_id === profile.id || m.opponent_id === profile.id) xpToday -= 20
     }
   }
 
@@ -98,18 +96,23 @@ export default async function Home() {
     .order("wins", { ascending: false })
     .limit(5)
 
+  const progress = nextRank
+    ? Math.min(100, ((profile.xp - rank.xp) / (nextRank.xp - rank.xp)) * 100)
+    : 100
+
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
 
-      <main className="max-w-6xl mx-auto px-4 py-10">
-        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
+      <main className="max-w-6xl mx-auto px-3 sm:px-4 py-6 sm:py-10">
+        {/* Top status strip */}
+        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-5 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4">
             {profile.avatar_url && (
-              <img src={profile.avatar_url} alt="" className="w-14 h-14 rounded-full border-2 border-[#FF5C00]" />
+              <img src={profile.avatar_url} alt="" className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-[#FF5C00]" />
             )}
             <div>
-              <div className="font-bold text-lg">{profile.steam_name}</div>
+              <div className="font-bold text-base sm:text-lg">{profile.steam_name}</div>
               <div className="flex items-center gap-2 text-sm flex-wrap">
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${rank.bg} ${rank.color}`}>{rank.name}</span>
                 <span className="text-gray-400">{profile.xp} XP</span>
@@ -119,37 +122,48 @@ export default async function Home() {
               </div>
             </div>
           </div>
-          <div className="flex gap-3">
-            <Link href="/matches/create" className="btn-primary px-5 py-2.5 rounded-xl text-sm">+ Create Match</Link>
-            <Link href="/matches" className="px-5 py-2.5 rounded-xl border border-[#1c1c28] text-sm hover:border-[#FF5C00]/50 transition">Find Match</Link>
+          <div className="flex gap-3 w-full sm:w-auto">
+            <Link href="/matches/create" className="btn-primary flex-1 sm:flex-none text-center px-5 py-2.5 rounded-xl text-sm">
+              + Create Match
+            </Link>
+            <Link href="/matches" className="flex-1 sm:flex-none text-center px-5 py-2.5 rounded-xl border border-[#1c1c28] text-sm hover:border-[#FF5C00]/50 transition">
+              Find Match
+            </Link>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* Left */}
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-lg">Open Matches</h2>
+                <h2 className="font-bold text-base sm:text-lg">Open Matches</h2>
                 <Link href="/matches" className="text-xs text-[#FF5C00] hover:underline">View all →</Link>
               </div>
               <HomeOpenMatches initialMatches={openMatches || []} />
             </div>
 
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-lg">Your Matches</h2>
+                <h2 className="font-bold text-base sm:text-lg">Your Matches</h2>
                 <Link href="/matches?tab=yours" className="text-xs text-[#FF5C00] hover:underline">View all →</Link>
               </div>
               <div className="space-y-3">
                 {yourMatches && yourMatches.length > 0 ? (
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   yourMatches.map((m: any) => (
-                    <Link key={m.id} href={`/matches/${m.id}`} className="flex items-center justify-between p-3 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] transition">
-                      <div>
-                        <div className="text-sm font-medium">{m.creator?.steam_name} vs {m.opponent?.steam_name || "Waiting..."}</div>
+                    <Link
+                      key={m.id}
+                      href={`/matches/${m.id}`}
+                      className="flex items-center justify-between p-3 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] transition gap-2"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {m.creator?.steam_name} vs {m.opponent?.steam_name || "Waiting..."}
+                        </div>
                         <div className="text-xs text-gray-500">{m.format} • {m.best_of}</div>
                       </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
                         m.status === "open" ? "bg-yellow-500/15 text-yellow-400" :
                         m.status === "accepted" ? "bg-emerald-500/15 text-emerald-400" :
                         m.status === "completed" ? "bg-blue-500/15 text-blue-400" :
@@ -163,52 +177,47 @@ export default async function Home() {
                 )}
               </div>
             </div>
-			  {/* Rank Progress */}
-<div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
-  <div className="flex items-center justify-between mb-4">
-    <h2 className="font-bold text-lg">Rank Progress</h2>
-    <Link href="/ranks" className="text-xs text-[#FF5C00] hover:underline">All ranks →</Link>
-  </div>
 
-  <div className="flex items-center gap-3 mb-5">
-    <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${rank.bg} ${rank.color}`}>
-      {rank.name}
-    </span>
-    <span className="text-sm text-gray-400">{profile.xp} XP</span>
-  </div>
-
-  {getNextRank(profile.xp || 0) ? (
-    <>
-      <div className="flex justify-between text-xs text-gray-500 mb-2">
-        <span>{rank.name}</span>
-        <span>{getNextRank(profile.xp || 0)!.name} • {getNextRank(profile.xp || 0)!.xp} XP</span>
-      </div>
-      <div className="h-3 bg-[#1c1c28] rounded-full overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-[#FF5C00] to-[#FF8A00] rounded-full"
-          style={{
-            width: `${Math.min(
-              100,
-              ((profile.xp - rank.xp) / (getNextRank(profile.xp || 0)!.xp - rank.xp)) * 100
-            )}%`,
-          }}
-        />
-      </div>
-      <div className="text-xs text-gray-500 mt-2">
-        {getNextRank(profile.xp || 0)!.xp - profile.xp} XP to {getNextRank(profile.xp || 0)!.name}
-      </div>
-    </>
-  ) : (
-    <div className="text-sm text-gray-400">Max rank reached.</div>
-  )}
-</div>
+            {/* Rank Progress */}
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-base sm:text-lg">Rank Progress</h2>
+                <Link href="/ranks" className="text-xs text-[#FF5C00] hover:underline">All ranks →</Link>
+              </div>
+              <div className="flex items-center gap-3 mb-5">
+                <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${rank.bg} ${rank.color}`}>
+                  {rank.name}
+                </span>
+                <span className="text-sm text-gray-400">{profile.xp} XP</span>
+              </div>
+              {nextRank ? (
+                <>
+                  <div className="flex justify-between text-xs text-gray-500 mb-2">
+                    <span>{rank.name}</span>
+                    <span>{nextRank.name} • {nextRank.xp} XP</span>
+                  </div>
+                  <div className="h-3 bg-[#1c1c28] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#FF5C00] to-[#FF8A00] rounded-full"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    {nextRank.xp - profile.xp} XP to {nextRank.name}
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-gray-400">Max rank reached.</div>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-6">
+          {/* Right */}
+          <div className="space-y-4 sm:space-y-6">
             {/* XP Today square */}
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl aspect-square flex flex-col items-center justify-center relative">
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl aspect-square max-w-[200px] sm:max-w-[220px] mx-auto lg:max-w-none lg:mx-0 flex flex-col items-center justify-center relative">
               <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider text-gray-500">24hrs</span>
-              <div className={`text-6xl font-black leading-none ${
+              <div className={`text-5xl sm:text-6xl font-black leading-none ${
                 xpToday > 0 ? "text-emerald-400" : xpToday < 0 ? "text-red-400" : "text-gray-400"
               }`}>
                 {xpToday > 0 ? `+${xpToday}` : xpToday}
@@ -216,7 +225,7 @@ export default async function Home() {
               <div className="text-xs text-gray-500 mt-2">XP Today</div>
             </div>
 
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold">Daily Quests</h2>
                 <Link href="/quests" className="text-xs text-[#FF5C00] hover:underline">All →</Link>
@@ -241,7 +250,7 @@ export default async function Home() {
               </div>
             </div>
 
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold">Top Earners</h2>
                 <Link href="/leaderboard" className="text-xs text-[#FF5C00] hover:underline">Full →</Link>
