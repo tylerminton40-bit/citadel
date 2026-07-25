@@ -77,49 +77,19 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
   // Reverse old stats if already completed
   if (match.status === "completed" && match.winner_id) {
     const oldWinnerId = match.winner_id
-    const oldLoserId = oldWinnerId === match.creator_id ? match.opponent_id : match.creator_id
+    const oldLoserId =
+      oldWinnerId === match.creator_id ? match.opponent_id : match.creator_id
 
     if (oldWinnerId) {
       await supabase.rpc("increment_xp", { profile_id: oldWinnerId, amount: -30 })
       await supabase.rpc("decrement_wins", { profile_id: oldWinnerId })
     }
     if (oldLoserId) {
+      // Old loss was -20 XP, so reverse by adding +20
       await supabase.rpc("increment_xp", { profile_id: oldLoserId, amount: 20 })
       await supabase.rpc("decrement_losses", { profile_id: oldLoserId })
     }
   }
-  // Update daily quests for both players
-const today = new Date().toISOString().slice(0, 10)
-
-async function bumpQuest(userId: string, key: string, amount = 1) {
-  const { data: quest } = await supabase
-    .from("daily_quests")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("quest_key", key)
-    .eq("quest_date", today)
-    .single()
-
-  if (quest && !quest.claimed) {
-    const newProgress = Math.min(quest.progress + amount, quest.target)
-    await supabase
-      .from("daily_quests")
-      .update({
-        progress: newProgress,
-        completed: newProgress >= quest.target,
-      })
-      .eq("id", quest.id)
-  }
-}
-
-// Both players played a match
-if (newWinnerId) await bumpQuest(newWinnerId, "play_2")
-if (newLoserId) await bumpQuest(newLoserId, "play_2")
-
-if (newWinnerId) {
-  await bumpQuest(newWinnerId, "win_1")
-  await bumpQuest(newWinnerId, "win_2")
-}
 
   // Set new winner
   await supabase
@@ -131,6 +101,7 @@ if (newWinnerId) {
     })
     .eq("id", matchId)
 
+  // Give new XP: +30 win, -20 loss
   if (newWinnerId) {
     await supabase.rpc("increment_xp", { profile_id: newWinnerId, amount: 30 })
     await supabase.rpc("increment_wins", { profile_id: newWinnerId })
@@ -138,6 +109,39 @@ if (newWinnerId) {
   if (newLoserId) {
     await supabase.rpc("increment_xp", { profile_id: newLoserId, amount: -20 })
     await supabase.rpc("increment_losses", { profile_id: newLoserId })
+  }
+
+  // Daily quests
+  const today = new Date().toISOString().slice(0, 10)
+
+  async function bumpQuest(userId: string, key: string) {
+    const { data: quest } = await supabase
+      .from("daily_quests")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("quest_key", key)
+      .eq("quest_date", today)
+      .single()
+
+    if (quest && !quest.claimed) {
+      const newProgress = Math.min(quest.progress + 1, quest.target)
+      await supabase
+        .from("daily_quests")
+        .update({
+          progress: newProgress,
+          completed: newProgress >= quest.target,
+        })
+        .eq("id", quest.id)
+    }
+  }
+
+  if (newWinnerId) {
+    await bumpQuest(newWinnerId, "play_2")
+    await bumpQuest(newWinnerId, "win_1")
+    await bumpQuest(newWinnerId, "win_2")
+  }
+  if (newLoserId) {
+    await bumpQuest(newLoserId, "play_2")
   }
 
   // Resolve ticket + notify
@@ -168,5 +172,6 @@ if (newWinnerId) {
 
   revalidatePath(`/admin/tickets/${ticketId}`)
   revalidatePath("/admin/tickets")
+  revalidatePath("/quests")
   redirect("/admin/tickets")
 }
