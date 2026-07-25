@@ -80,7 +80,11 @@ export default async function AdminTicketDetailPage({
           <h3 className="font-bold mb-3">Proof</h3>
           <div className="space-y-4">
             {proofs && proofs.length > 0 ? (
-              proofs.map((proof: any) => (
+              proofs.map((proof: {
+  id: string
+  file_url: string
+  file_type: string
+}) => (
                 <div key={proof.id} className="bg-[#08080d] rounded-xl p-4">
                   {proof.file_type === "video" ? (
                     <video src={proof.file_url} controls className="w-full rounded-lg" />

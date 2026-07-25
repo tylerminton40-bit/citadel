@@ -37,7 +37,13 @@ export default async function AdminTicketsPage() {
 
         <div className="space-y-4">
           {tickets && tickets.length > 0 ? (
-            tickets.map((ticket: any) => (
+            tickets.map((ticket: {
+  id: string
+  subject: string
+  created_at: string
+  status: string
+  creator: { steam_name: string; avatar_url: string | null } | null
+}) => (
               <Link
                 key={ticket.id}
                 href={`/admin/tickets/${ticket.id}`}
