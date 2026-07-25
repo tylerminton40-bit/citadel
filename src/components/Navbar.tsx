@@ -37,6 +37,9 @@ export default async function Navbar() {
           <Link href="/ranks" className="text-sm text-gray-400 hover:text-white transition">
             Ranks
           </Link>
+		  <Link href="/tickets" className="text-sm text-gray-400 hover:text-white transition">
+  Tickets
+</Link>
 <Link href="/matches" className="text-sm text-gray-400 hover:text-white transition">
   Match Finder
 </Link>
