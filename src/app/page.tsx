@@ -5,14 +5,6 @@ import { createClient } from "@supabase/supabase-js"
 import { getRank } from "@/lib/ranks"
 import HomeOpenMatches from "@/components/HomeOpenMatches"
 
-function timeAgo(date: string) {
-  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
-  if (seconds < 60) return `${seconds}s ago`
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-  return `${Math.floor(seconds / 86400)}d ago`
-}
-
 export default async function Home() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
@@ -55,32 +47,29 @@ export default async function Home() {
     )
   }
 
-// ✅ PUT THE XP TODAY CODE RIGHT HERE
-const rank = getRank(profile.xp || 0)
+  const rank = getRank(profile.xp || 0)
 
-const startOfDay = new Date()
-startOfDay.setHours(0, 0, 0, 0)
+  // XP today
+  const startOfDay = new Date()
+  startOfDay.setHours(0, 0, 0, 0)
 
-const { data: todaysMatches } = await supabase
-  .from("matches")
-  .select("winner_id, creator_id, opponent_id, status, completed_at")
-  .eq("status", "completed")
-  .gte("completed_at", startOfDay.toISOString())
-  .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+  const { data: todaysMatches } = await supabase
+    .from("matches")
+    .select("winner_id, creator_id, opponent_id, status, completed_at")
+    .eq("status", "completed")
+    .gte("completed_at", startOfDay.toISOString())
+    .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
 
-let xpToday = 0
-if (todaysMatches) {
-  for (const m of todaysMatches) {
-    if (m.winner_id === profile.id) {
-      xpToday += 30
-    } else if (m.creator_id === profile.id || m.opponent_id === profile.id) {
-      xpToday -= 20
+  let xpToday = 0
+  if (todaysMatches) {
+    for (const m of todaysMatches) {
+      if (m.winner_id === profile.id) {
+        xpToday += 30
+      } else if (m.creator_id === profile.id || m.opponent_id === profile.id) {
+        xpToday -= 20
+      }
     }
   }
-}
-
-// then the rest of your openMatches / yourMatches queries...
-  const rank = getRank(profile.xp || 0)
 
   const { data: openMatches } = await supabase
     .from("matches")
@@ -122,16 +111,16 @@ if (todaysMatches) {
             )}
             <div>
               <div className="font-bold text-lg">{profile.steam_name}</div>
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-2 text-sm flex-wrap">
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${rank.bg} ${rank.color}`}>{rank.name}</span>
                 <span className="text-gray-400">{profile.xp} XP</span>
-<span className="text-gray-600">•</span>
-<span className={xpToday > 0 ? "text-emerald-400" : xpToday < 0 ? "text-red-400" : "text-gray-400"}>
-  {xpToday > 0 ? `+${xpToday}` : xpToday} today
-</span>
-<span className="text-gray-600">•</span>
-<span className="text-emerald-400">{profile.wins}W</span>
-<span className="text-red-400">{profile.losses}L</span>
+                <span className="text-gray-600">•</span>
+                <span className={xpToday > 0 ? "text-emerald-400" : xpToday < 0 ? "text-red-400" : "text-gray-400"}>
+                  {xpToday > 0 ? `+${xpToday}` : xpToday} today
+                </span>
+                <span className="text-gray-600">•</span>
+                <span className="text-emerald-400">{profile.wins}W</span>
+                <span className="text-red-400">{profile.losses}L</span>
               </div>
             </div>
           </div>
@@ -146,7 +135,6 @@ if (todaysMatches) {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
@@ -194,7 +182,6 @@ if (todaysMatches) {
             </div>
           </div>
 
-          {/* Right */}
           <div className="space-y-6">
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
