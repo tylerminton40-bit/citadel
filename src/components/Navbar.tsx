@@ -2,6 +2,7 @@ import Link from "next/link"
 import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 import { getRank } from "@/lib/ranks"
+import Notifications from "@/components/Notifications"
 
 export default async function Navbar() {
   const cookieStore = await cookies()
@@ -37,18 +38,20 @@ export default async function Navbar() {
           <Link href="/ranks" className="text-sm text-gray-400 hover:text-white transition">
             Ranks
           </Link>
-		  <Link href="/tickets" className="text-sm text-gray-400 hover:text-white transition">
-  Tickets
-</Link>
-<Link href="/rules" className="text-sm text-gray-400 hover:text-white transition">
-  Rules
-</Link>
-<Link href="/matches" className="text-sm text-gray-400 hover:text-white transition">
-  Match Finder
-</Link>
+          <Link href="/matches" className="text-sm text-gray-400 hover:text-white transition">
+            Match Finder
+          </Link>
+          <Link href="/tickets" className="text-sm text-gray-400 hover:text-white transition">
+            Tickets
+          </Link>
+          <Link href="/rules" className="text-sm text-gray-400 hover:text-white transition">
+            Rules
+          </Link>
 
           {profile ? (
             <div className="flex items-center gap-3">
+              <Notifications userId={profile.id} />
+              
               <Link href="/profile" className="flex items-center gap-2 hover:opacity-80 transition">
                 {profile.avatar_url && (
                   <img src={profile.avatar_url} alt="" className="w-8 h-8 rounded-full" />
@@ -58,6 +61,7 @@ export default async function Navbar() {
                   {rank?.name}
                 </span>
               </Link>
+
               <Link href="/settings" className="text-sm text-gray-400 hover:text-white">
                 Settings
               </Link>
