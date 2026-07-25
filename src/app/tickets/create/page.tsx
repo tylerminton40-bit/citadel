@@ -46,7 +46,7 @@ export default async function CreateTicketPage() {
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
 
-      <main className="max-w-xl mx-auto px-4 py-12">
+      <main className="max-w-xl mx-auto px-3 sm:px-4 py-8 sm:py-12">
         <h1 className="text-3xl font-bold mb-2">New Ticket</h1>
         <p className="text-gray-400 text-sm mb-8">
           You must upload at least 1 screenshot or video as proof.
@@ -90,17 +90,20 @@ export default async function CreateTicketPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-2">
-              Proof (Screenshot or Video) *
-            </label>
-            <input
-              name="proof"
-              type="file"
-              accept="image/*,video/*"
-              required
-              className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-[#FF5C00] file:text-black file:font-medium"
-            />
-          </div>
+  <label className="block text-sm text-gray-400 mb-2">
+    Proof (Screenshot or Video) *
+  </label>
+  <p className="text-xs text-gray-500 mb-3">
+    Max 50MB. Prefer PNG, JPG, or MP4. Some JPEGs may fail — try PNG if upload breaks.
+  </p>
+  <input
+    name="proof"
+    type="file"
+    accept="image/*,video/*"
+    required
+    className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-[#FF5C00] file:text-black file:font-medium"
+  />
+</div>
 
           <button type="submit" className="btn-primary w-full py-3 rounded-xl font-medium">
             Submit Ticket

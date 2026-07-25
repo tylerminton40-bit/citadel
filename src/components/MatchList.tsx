@@ -54,7 +54,6 @@ export default function MatchList({
       }
     }, 5000)
 
-    // Also run once immediately
     fetch(`/api/matches?tab=${currentTab}&t=${Date.now()}`)
       .then((res) => res.json())
       .then((data) => {
@@ -74,7 +73,7 @@ export default function MatchList({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {matches.map((match) => {
         let resultLabel = match.status
         let resultColor = "bg-gray-500/15 text-gray-400"
@@ -105,27 +104,29 @@ export default function MatchList({
           <Link
             key={match.id}
             href={`/matches/${match.id}`}
-            className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 flex items-center justify-between hover:border-[#FF5C00]/40 transition block"
+            className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-3 sm:p-5 flex items-center justify-between hover:border-[#FF5C00]/40 transition gap-3"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 min-w-0">
               {match.creator?.avatar_url && (
                 <img
                   src={match.creator.avatar_url}
                   alt=""
-                  className="w-12 h-12 rounded-full"
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-full shrink-0"
                 />
               )}
-              <div>
-                <div className="font-medium">{match.creator?.steam_name || "Unknown"}</div>
-                <div className="text-sm text-gray-400">
+              <div className="min-w-0">
+                <div className="font-medium truncate">{match.creator?.steam_name || "Unknown"}</div>
+                <div className="text-xs sm:text-sm text-gray-400 truncate">
                   {match.format} • {match.best_of || "Bo1"} • {match.region} • {match.ruleset}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              <span className="text-xs text-gray-500">{timeAgo(match.created_at)}</span>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${resultColor}`}>
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+              <span className="text-[10px] sm:text-xs text-gray-500 hidden sm:inline">
+                {timeAgo(match.created_at)}
+              </span>
+              <span className={`text-[10px] sm:text-xs px-2 sm:px-2.5 py-1 rounded-full font-medium ${resultColor}`}>
                 {resultLabel}
               </span>
             </div>

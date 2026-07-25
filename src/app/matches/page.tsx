@@ -46,21 +46,21 @@ export default async function MatchesPage({
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
 
-      <main className="max-w-5xl mx-auto px-4 py-12">
-        <div className="flex items-center justify-between mb-8">
+      <main className="max-w-5xl mx-auto px-3 sm:px-4 py-8 sm:py-12">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Match Finder</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Match Finder</h1>
             <p className="text-gray-400 text-sm mt-1">
               1v1–4v4 = Street Brawl • 6v6 = Normal
             </p>
           </div>
-          <Link href="/matches/create" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
+          <Link href="/matches/create" className="btn-primary px-5 py-2.5 rounded-xl text-sm text-center">
             + Create Match
           </Link>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-8">
+        <div className="flex gap-2 mb-6 sm:mb-8">
           <Link
             href="/matches?tab=open"
             className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
@@ -88,4 +88,3 @@ export default async function MatchesPage({
     </div>
   )
 }
-
