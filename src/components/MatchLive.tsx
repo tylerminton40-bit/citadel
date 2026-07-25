@@ -28,28 +28,30 @@ export default function MatchLive({
   const [messages, setMessages] = useState(initialMessages)
   const [newMessage, setNewMessage] = useState("")
   const [codeInput, setCodeInput] = useState("")
-  const [lastUpdate, setLastUpdate] = useState(Date.now())
   const bottomRef = useRef<HTMLDivElement>(null)
+  const prevMessageCount = useRef(initialMessages.length)
 
-  // Auto scroll
+  // Only scroll when a NEW message actually arrives
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (messages.length > prevMessageCount.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+    }
+    prevMessageCount.current = messages.length
   }, [messages])
 
-  // Poll every 2.5 seconds
+  // Poll every 2 seconds
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/match-live?matchId=${matchId}&t=${Date.now()}`)
         const data = await res.json()
 
-        if (data.code) setCode(data.code)
+        if (data.code !== undefined) setCode(data.code)
         if (data.messages) setMessages(data.messages)
-        setLastUpdate(Date.now())
       } catch (err) {
         console.error("Live update failed", err)
       }
-    }, 2500)
+    }, 2000)
 
     return () => clearInterval(interval)
   }, [matchId])
@@ -70,17 +72,6 @@ export default function MatchLive({
     const text = newMessage
     setNewMessage("")
 
-    // Show immediately
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        message: text,
-        sender: { steam_name: "You" },
-        created_at: new Date().toISOString(),
-      },
-    ])
-
     await fetch("/api/match-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -94,7 +85,7 @@ export default function MatchLive({
       <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-purple-400">Private Match Code</h3>
-          <span className="text-xs text-gray-500">Updates live</span>
+          <span className="text-xs text-gray-500">Live</span>
         </div>
 
         {code ? (
@@ -125,7 +116,7 @@ export default function MatchLive({
       <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold">Match Chat</h3>
-          <span className="text-xs text-gray-500">Auto-refreshing</span>
+          <span className="text-xs text-gray-500">Live</span>
         </div>
 
         <div className="h-52 overflow-y-auto bg-[#08080d] rounded-xl p-4 mb-4 space-y-3">
