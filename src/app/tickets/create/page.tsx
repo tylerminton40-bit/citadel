@@ -34,7 +34,7 @@ export default async function CreateTicketPage() {
     redirect("/tickets?error=already_open")
   }
 
-  // Get their matches so they can choose which one
+  // Get their matches
   const { data: matches } = await supabase
     .from("matches")
     .select("id, format, best_of, status, created_at, creator:profiles!matches_creator_id_fkey(steam_name), opponent:profiles!matches_opponent_id_fkey(steam_name)")
@@ -60,12 +60,13 @@ export default async function CreateTicketPage() {
               className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
             >
               <option value="">No specific match</option>
-{/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-{matches?.map((m: any) => (
-  <option key={m.id} value={m.id}>
-    {m.format} {m.best_of} • {m.status} • {m.creator?.steam_name || "?"} vs {m.opponent?.steam_name || "?"}
-  </option>
-))}
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {matches?.map((m: any) => (
+                <option key={m.id} value={m.id}>
+                  {m.format} {m.best_of} • {m.status} • {m.creator?.steam_name || "?"} vs {m.opponent?.steam_name || "?"}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
