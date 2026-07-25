@@ -251,7 +251,7 @@ if (updated.creator_report && updated.opponent_report) {
       await supabase.rpc("increment_wins", { profile_id: winnerId })
     }
     if (loserId) {
-      await supabase.rpc("increment_xp", { profile_id: loserId, amount: 10 })
+      await supabase.rpc("increment_xp", { profile_id: loserId, amount: -20 })
       await supabase.rpc("increment_losses", { profile_id: loserId })
     }
   } else {

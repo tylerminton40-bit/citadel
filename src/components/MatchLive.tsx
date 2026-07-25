@@ -79,11 +79,27 @@ export default function MatchLive({
           <span className="text-xs text-gray-500">Live</span>
         </div>
 
-        {code ? (
-          <div className="text-2xl font-mono font-bold tracking-widest text-center py-4 bg-[#08080d] rounded-xl">
-            {code}
-          </div>
-        ) : isCreator && isAccepted ? (
+{code ? (
+  <div className="space-y-3">
+    <div className="text-2xl font-mono font-bold tracking-widest text-center py-4 bg-[#08080d] rounded-xl">
+      {code}
+    </div>
+    {isCreator && isAccepted && (
+      <div className="space-y-2">
+        <input
+          value={codeInput}
+          onChange={(e) => setCodeInput(e.target.value)}
+          type="text"
+          placeholder="Enter new code..."
+          className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF5C00]"
+        />
+        <button onClick={postCode} className="w-full py-2 rounded-xl text-sm border border-[#1c1c28] hover:border-[#FF5C00]/50 transition">
+          Update Code
+        </button>
+      </div>
+    )}
+  </div>
+) : isCreator && isAccepted ? (
           <div className="space-y-3">
             <input
               value={codeInput}

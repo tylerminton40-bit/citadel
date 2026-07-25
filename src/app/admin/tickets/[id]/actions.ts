@@ -84,7 +84,7 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
       await supabase.rpc("decrement_wins", { profile_id: oldWinnerId })
     }
     if (oldLoserId) {
-      await supabase.rpc("increment_xp", { profile_id: oldLoserId, amount: -10 })
+      await supabase.rpc("increment_xp", { profile_id: oldLoserId, amount: 20 })
       await supabase.rpc("decrement_losses", { profile_id: oldLoserId })
     }
   }
@@ -104,7 +104,7 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
     await supabase.rpc("increment_wins", { profile_id: newWinnerId })
   }
   if (newLoserId) {
-    await supabase.rpc("increment_xp", { profile_id: newLoserId, amount: 10 })
+    await supabase.rpc("increment_xp", { profile_id: newLoserId, amount: -20 })
     await supabase.rpc("increment_losses", { profile_id: newLoserId })
   }
 

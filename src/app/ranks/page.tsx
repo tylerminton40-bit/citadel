@@ -36,7 +36,7 @@ export default function RanksPage() {
               <div className="text-gray-400">Win</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-400">+10 XP</div>
+              <div className="text-2xl font-bold text-blue-400">-20 XP</div>
               <div className="text-gray-400">Loss</div>
             </div>
           </div>

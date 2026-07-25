@@ -47,6 +47,9 @@ export default async function Navbar() {
           <Link href="/rules" className="text-sm text-gray-400 hover:text-white transition">
             Rules
           </Link>
+		  <Link href="/players" className="text-sm text-gray-400 hover:text-white transition">
+  Players
+</Link>
 
           {profile ? (
             <div className="flex items-center gap-3">
