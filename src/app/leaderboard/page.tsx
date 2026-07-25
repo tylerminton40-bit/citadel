@@ -48,6 +48,9 @@ export default async function LeaderboardPage({
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-12">
+	  <Link href="/" className="text-sm text-gray-400 hover:text-white mb-6 inline-block">
+    ← Back to Hub
+  </Link>
         <h1 className="text-3xl font-bold mb-2">Leaderboard</h1>
         <p className="text-gray-400 text-sm mb-8">Top Citadel competitors</p>
 
@@ -119,9 +122,6 @@ export default async function LeaderboardPage({
           )}
         </div>
       </main>
-	  <Link href="/" className="text-sm text-gray-400 hover:text-white mb-6 inline-block">
-  ← Back to Hub
-</Link>
     </div>
   )
 }
