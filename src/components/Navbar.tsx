@@ -50,6 +50,9 @@ export default async function Navbar() {
 		  <Link href="/players" className="text-sm text-gray-400 hover:text-white transition">
   Players
 </Link>
+<Link href="/leaderboard" className="text-sm text-gray-400 hover:text-white transition">
+  Leaderboard
+</Link>
 
           {profile ? (
             <div className="flex items-center gap-3">
