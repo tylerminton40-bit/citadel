@@ -128,18 +128,16 @@ export default async function AdminTicketDetailPage({
               </Link>
             </div>
 
-            {match.status !== "completed" && (
-              <form action={forceWinner.bind(null, match.id, id)} className="flex gap-3 items-center mt-4">
-                <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm">
-                  <option value="">Choose winner...</option>
-                  <option value="creator">{match.creator?.steam_name} wins</option>
-                  <option value="opponent">{match.opponent?.steam_name} wins</option>
-                </select>
-                <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
-                  Force Winner + Resolve
-                </button>
-              </form>
-            )}
+            <form action={forceWinner.bind(null, match.id, id)} className="flex gap-3 items-center mt-4">
+  <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm">
+    <option value="">Choose winner...</option>
+    <option value="creator">{match.creator?.steam_name} wins</option>
+    <option value="opponent">{match.opponent?.steam_name} wins</option>
+  </select>
+  <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
+    {match.status === "completed" ? "Change Winner" : "Force Winner + Resolve"}
+  </button>
+</form>
 
             {match.status === "completed" && (
               <div className="text-sm text-emerald-400">

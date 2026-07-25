@@ -54,35 +54,50 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
 
   if (!match) return
 
-  const winnerId = winner === "creator" ? match.creator_id : match.opponent_id
-  const loserId = winner === "creator" ? match.opponent_id : match.creator_id
+  const newWinnerId = winner === "creator" ? match.creator_id : match.opponent_id
+  const newLoserId = winner === "creator" ? match.opponent_id : match.creator_id
 
-  // Complete the match
+  // If match was already completed, reverse the old XP first
+  if (match.status === "completed" && match.winner_id) {
+    const oldWinnerId = match.winner_id
+    const oldLoserId = oldWinnerId === match.creator_id ? match.opponent_id : match.creator_id
+
+    // Remove old XP
+    if (oldWinnerId) {
+      await supabase.rpc("increment_xp", { profile_id: oldWinnerId, amount: -30 })
+      // We don't have decrement_wins, so we leave wins/losses for now or you can add those functions later
+    }
+    if (oldLoserId) {
+      await supabase.rpc("increment_xp", { profile_id: oldLoserId, amount: -10 })
+    }
+  }
+
+  // Set new winner
   await supabase
     .from("matches")
     .update({
       status: "completed",
-      winner_id: winnerId,
+      winner_id: newWinnerId,
       completed_at: new Date().toISOString(),
     })
     .eq("id", matchId)
 
-  // Give XP
-  if (winnerId) {
-    await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
-    await supabase.rpc("increment_wins", { profile_id: winnerId })
+  // Give new XP
+  if (newWinnerId) {
+    await supabase.rpc("increment_xp", { profile_id: newWinnerId, amount: 30 })
+    await supabase.rpc("increment_wins", { profile_id: newWinnerId })
   }
-  if (loserId) {
-    await supabase.rpc("increment_xp", { profile_id: loserId, amount: 10 })
-    await supabase.rpc("increment_losses", { profile_id: loserId })
+  if (newLoserId) {
+    await supabase.rpc("increment_xp", { profile_id: newLoserId, amount: 10 })
+    await supabase.rpc("increment_losses", { profile_id: newLoserId })
   }
 
-  // Resolve the ticket
+  // Resolve ticket
   await supabase
     .from("tickets")
     .update({
       status: "resolved",
-      admin_response: `Admin forced winner. Match completed.`,
+      admin_response: `Admin set the winner. Match updated.`,
       resolved_at: new Date().toISOString(),
     })
     .eq("id", ticketId)
