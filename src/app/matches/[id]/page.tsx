@@ -164,18 +164,27 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             </form>
           )}
 
-          {isAccepted && isParticipant && (
-            <form action={reportResult.bind(null, id)} className="flex gap-3 items-center">
-              <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm">
-                <option value="">Who won?</option>
-                <option value="creator">{match.creator?.steam_name} won</option>
-                <option value="opponent">{match.opponent?.steam_name} won</option>
-              </select>
-              <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
-                Report Result
-              </button>
-            </form>
-          )}
+ {isAccepted && isParticipant && (
+  <>
+    {/* Show form only if current user hasn't reported yet */}
+    {((isCreator && !match.creator_report) || (isOpponent && !match.opponent_report)) ? (
+      <form action={reportResult.bind(null, id)} className="flex gap-3 items-center">
+        <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm">
+          <option value="">Who won?</option>
+          <option value="creator">{match.creator?.steam_name} won</option>
+          <option value="opponent">{match.opponent?.steam_name} won</option>
+        </select>
+        <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
+          Report Result
+        </button>
+      </form>
+    ) : (
+      <div className="px-5 py-2.5 rounded-xl bg-orange-500/10 text-orange-400 text-sm font-medium">
+        You reported • Waiting for opponent
+      </div>
+    )}
+  </>
+)}
 
           <Link href="/matches" className="px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
             Back to Matches
