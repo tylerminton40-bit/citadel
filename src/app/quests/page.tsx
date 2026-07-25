@@ -74,7 +74,7 @@ export default async function QuestsPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <div className="font-medium">{q.title}</div>
-                    <div className="text-sm text-gray-400">+{q.xp} XP</div>
+                    <div className="text-sm text-gray-400">+{q.reward} XP</div>
                   </div>
 
                   {claimed ? (
@@ -82,7 +82,7 @@ export default async function QuestsPage() {
                       Claimed
                     </span>
                   ) : completed ? (
-                    <form action={claimQuest.bind(null, q.key, q.xp)}>
+                    <form action={claimQuest.bind(null, q.key, q.reward)}>
                       <button type="submit" className="btn-primary px-4 py-1.5 rounded-xl text-sm">
                         Claim
                       </button>
