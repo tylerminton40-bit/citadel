@@ -84,15 +84,15 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
     .eq("id", matchId)
 	
 	// Get the ticket to find the creator
-const { data: ticket } = await supabase
+const { data: ticketData } = await supabase
   .from("tickets")
   .select("creator_id")
   .eq("id", ticketId)
   .single()
 
-if (ticket?.creator_id) {
+if (ticketData?.creator_id) {
   await createNotification({
-    userId: ticket.creator_id,
+    userId: ticketData.creator_id,
     type: "ticket_resolved",
     title: "Ticket Resolved",
     message: response || "Your ticket has been resolved",
@@ -123,15 +123,15 @@ if (ticket?.creator_id) {
     .eq("id", ticketId)
 	
 	// Get the ticket to find the creator
-const { data: ticket } = await supabase
+const { data: ticketData } = await supabase
   .from("tickets")
   .select("creator_id")
   .eq("id", ticketId)
   .single()
 
-if (ticket?.creator_id) {
+if (ticketData?.creator_id) {
   await createNotification({
-    userId: ticket.creator_id,
+    userId: ticketData.creator_id,
     type: "ticket_resolved",
     title: "Ticket Resolved",
     message: response || "Your ticket has been resolved",
