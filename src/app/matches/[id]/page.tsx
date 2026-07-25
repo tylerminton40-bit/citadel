@@ -60,13 +60,13 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 py-12">
+      <main className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-12">
         {/* Status */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="text-sm text-gray-400">
+        <div className="flex items-center justify-between mb-6 sm:mb-8 gap-2">
+          <div className="text-xs sm:text-sm text-gray-400 truncate">
             {match.format} • {match.best_of} • {match.region}
           </div>
-          <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+          <div className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium shrink-0 ${
             isOpen ? "bg-yellow-500/20 text-yellow-400" :
             match.status === "disputed" ? "bg-red-500/20 text-red-400" :
             isCompleted ? "bg-blue-500/20 text-blue-400" :
@@ -83,43 +83,56 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Head to Head */}
-        <div className="bg-[#111118] border border-[#1c1c28] rounded-3xl p-8 mb-8">
-          <div className="grid grid-cols-3 items-center gap-6">
+        {/* Head to Head - stacks on mobile */}
+        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl sm:rounded-3xl p-5 sm:p-8 mb-6 sm:mb-8">
+          <div className="grid grid-cols-3 items-center gap-2 sm:gap-6">
+            {/* Host */}
             <div className="text-center">
-              {match.creator?.avatar_url && (
-                <img src={match.creator.avatar_url} alt="" className="w-24 h-24 rounded-full mx-auto mb-3 border-4 border-[#FF5C00]" />
+              {match.creator?.avatar_url ? (
+                <img
+                  src={match.creator.avatar_url}
+                  alt=""
+                  className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-[#FF5C00]"
+                />
+              ) : (
+                <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 bg-[#1c1c28]" />
               )}
-              <div className="font-bold text-lg">{match.creator?.steam_name || "Unknown"}</div>
-              <div className="text-sm text-gray-400 mt-1">Host</div>
-<div className="text-xs text-[#FF5C00] font-medium">Hidden King</div>
+              <div className="font-bold text-sm sm:text-lg truncate px-1">{match.creator?.steam_name || "Unknown"}</div>
+              <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Host</div>
+              <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium">Hidden King</div>
             </div>
 
+            {/* VS */}
             <div className="text-center">
-              <div className="text-4xl font-black text-[#FF5C00] mb-2">VS</div>
-              <div className="text-sm text-gray-400">{match.map}</div>
-              <div className="text-xs text-gray-500 mt-1">{match.best_of}</div>
+              <div className="text-2xl sm:text-4xl font-black text-[#FF5C00] mb-1 sm:mb-2">VS</div>
+              <div className="text-[10px] sm:text-sm text-gray-400">{match.map}</div>
+              <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">{match.best_of}</div>
             </div>
 
+            {/* Challenger */}
             <div className="text-center">
               {match.opponent?.avatar_url ? (
-                <img src={match.opponent.avatar_url} alt="" className="w-24 h-24 rounded-full mx-auto mb-3 border-4 border-purple-500" />
+                <img
+                  src={match.opponent.avatar_url}
+                  alt=""
+                  className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-purple-500"
+                />
               ) : (
-                <div className="w-24 h-24 rounded-full mx-auto mb-3 border-4 border-dashed border-gray-600 flex items-center justify-center text-gray-500 text-sm">
-                  Waiting
+                <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-dashed border-gray-600 flex items-center justify-center text-gray-500 text-[10px] sm:text-sm">
+                  Wait
                 </div>
               )}
-              <div className="font-bold text-lg">{match.opponent?.steam_name || "Waiting..."}</div>
-              <div className="text-sm text-gray-400 mt-1">Challenger</div>
-<div className="text-xs text-purple-400 font-medium">Archmother</div>
+              <div className="font-bold text-sm sm:text-lg truncate px-1">{match.opponent?.steam_name || "Waiting..."}</div>
+              <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Challenger</div>
+              <div className="text-[10px] sm:text-xs text-purple-400 font-medium">Archmother</div>
             </div>
           </div>
         </div>
 
         {/* Match Info */}
-        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 mb-6">
-          <h3 className="font-bold mb-4 text-[#FF5C00]">Match Info</h3>
-          <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
+          <h3 className="font-bold mb-3 sm:mb-4 text-[#FF5C00] text-sm sm:text-base">Match Info</h3>
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">
             <div className="flex justify-between"><span className="text-gray-400">Format</span><span>{match.format}</span></div>
             <div className="flex justify-between"><span className="text-gray-400">Best Of</span><span>{match.best_of}</span></div>
             <div className="flex justify-between"><span className="text-gray-400">Region</span><span>{match.region}</span></div>
@@ -128,15 +141,15 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {/* Instructions */}
-        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 mb-6">
-          <h3 className="font-bold mb-3 text-[#FF5C00]">How to Play</h3>
-          <ol className="text-sm text-gray-400 space-y-2 list-decimal list-inside">
-            <li>Host creates a Private Match in Deadlock (Street Brawl for 1v1-4v4, Normal for 6v6)</li>
-            <li>Host posts the Private Match Code in the box below</li>
-            <li>Both players join using the code</li>
-            <li>Play the match (Best of {match.best_of})</li>
-            <li>Both players report the result on this page</li>
-            <li>XP is awarded when both reports match</li>
+        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
+          <h3 className="font-bold mb-3 text-[#FF5C00] text-sm sm:text-base">How to Join</h3>
+          <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 sm:space-y-2 list-decimal list-inside">
+            <li>Open <strong className="text-white">Deadlock</strong></li>
+            <li>Go to <strong className="text-white">Private Match</strong></li>
+            <li>Host creates lobby (Street Brawl 1v1–4v4 / Normal 6v6)</li>
+            <li>Host posts the <strong className="text-white">Join Code</strong> below</li>
+            <li>Other player joins with the code</li>
+            <li>Play ({match.best_of}) then both report the result</li>
           </ol>
         </div>
 
@@ -151,44 +164,43 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         />
 
         {/* Actions */}
-        <div className="flex flex-wrap gap-4 justify-center mt-10">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center mt-8 sm:mt-10">
           {isOpen && !isCreator && (
-            <form action={async () => { "use server"; await acceptMatch(id) }}>
-              <button type="submit" className="btn-primary px-8 py-3 rounded-xl">Accept Match</button>
+            <form action={async () => { "use server"; await acceptMatch(id) }} className="w-full sm:w-auto">
+              <button type="submit" className="btn-primary w-full sm:w-auto px-8 py-3 rounded-xl">Accept Match</button>
             </form>
           )}
 
           {isOpen && isCreator && (
-            <form action={async () => { "use server"; await cancelMatch(id) }}>
-              <button type="submit" className="px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition">
+            <form action={async () => { "use server"; await cancelMatch(id) }} className="w-full sm:w-auto">
+              <button type="submit" className="w-full sm:w-auto px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition">
                 Cancel Match
               </button>
             </form>
           )}
 
- {isAccepted && isParticipant && (
-  <>
-    {/* Show form only if current user hasn't reported yet */}
-    {((isCreator && !match.creator_report) || (isOpponent && !match.opponent_report)) ? (
-      <form action={reportResult.bind(null, id)} className="flex gap-3 items-center">
-        <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm">
-          <option value="">Who won?</option>
-          <option value="creator">{match.creator?.steam_name} won</option>
-          <option value="opponent">{match.opponent?.steam_name} won</option>
-        </select>
-        <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
-          Report Result
-        </button>
-      </form>
-    ) : (
-      <div className="px-5 py-2.5 rounded-xl bg-orange-500/10 text-orange-400 text-sm font-medium">
-        You reported • Waiting for opponent
-      </div>
-    )}
-  </>
-)}
+          {isAccepted && isParticipant && (
+            <>
+              {((isCreator && !match.creator_report) || (isOpponent && !match.opponent_report)) ? (
+                <form action={reportResult.bind(null, id)} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
+                  <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm">
+                    <option value="">Who won?</option>
+                    <option value="creator">{match.creator?.steam_name} won</option>
+                    <option value="opponent">{match.opponent?.steam_name} won</option>
+                  </select>
+                  <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
+                    Report Result
+                  </button>
+                </form>
+              ) : (
+                <div className="px-5 py-2.5 rounded-xl bg-orange-500/10 text-orange-400 text-sm font-medium text-center">
+                  You reported • Waiting for opponent
+                </div>
+              )}
+            </>
+          )}
 
-          <Link href="/matches" className="px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
+          <Link href="/matches" className="w-full sm:w-auto text-center px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
             Back to Matches
           </Link>
         </div>
