@@ -49,18 +49,27 @@ export default async function Home() {
 
   const rank = getRank(profile.xp || 0)
 
-{/* XP Today card */}
-<div className="bg-[#111118] border border-[#1c1c28] rounded-2xl aspect-square flex flex-col items-center justify-center relative">
-  <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider text-gray-500">
-    24hrs
-  </span>
-  <div className={`text-6xl font-black leading-none ${
-    xpToday > 0 ? "text-emerald-400" : xpToday < 0 ? "text-red-400" : "text-gray-400"
-  }`}>
-    {xpToday > 0 ? `+${xpToday}` : xpToday}
-  </div>
-  <div className="text-xs text-gray-500 mt-2">XP Today</div>
-</div>
+  // XP today
+  const startOfDay = new Date()
+  startOfDay.setHours(0, 0, 0, 0)
+
+  const { data: todaysMatches } = await supabase
+    .from("matches")
+    .select("winner_id, creator_id, opponent_id, status, completed_at")
+    .eq("status", "completed")
+    .gte("completed_at", startOfDay.toISOString())
+    .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+
+  let xpToday = 0
+  if (todaysMatches) {
+    for (const m of todaysMatches) {
+      if (m.winner_id === profile.id) {
+        xpToday += 30
+      } else if (m.creator_id === profile.id || m.opponent_id === profile.id) {
+        xpToday -= 20
+      }
+    }
+  }
 
   const { data: openMatches } = await supabase
     .from("matches")
@@ -94,7 +103,6 @@ export default async function Home() {
       <Navbar />
 
       <main className="max-w-6xl mx-auto px-4 py-10">
-        {/* Top status strip */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 mb-8 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             {profile.avatar_url && (
@@ -112,17 +120,12 @@ export default async function Home() {
             </div>
           </div>
           <div className="flex gap-3">
-            <Link href="/matches/create" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
-              + Create Match
-            </Link>
-            <Link href="/matches" className="px-5 py-2.5 rounded-xl border border-[#1c1c28] text-sm hover:border-[#FF5C00]/50 transition">
-              Find Match
-            </Link>
+            <Link href="/matches/create" className="btn-primary px-5 py-2.5 rounded-xl text-sm">+ Create Match</Link>
+            <Link href="/matches" className="px-5 py-2.5 rounded-xl border border-[#1c1c28] text-sm hover:border-[#FF5C00]/50 transition">Find Match</Link>
           </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
@@ -141,15 +144,9 @@ export default async function Home() {
                 {yourMatches && yourMatches.length > 0 ? (
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   yourMatches.map((m: any) => (
-                    <Link
-                      key={m.id}
-                      href={`/matches/${m.id}`}
-                      className="flex items-center justify-between p-3 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] transition"
-                    >
+                    <Link key={m.id} href={`/matches/${m.id}`} className="flex items-center justify-between p-3 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] transition">
                       <div>
-                        <div className="text-sm font-medium">
-                          {m.creator?.steam_name} vs {m.opponent?.steam_name || "Waiting..."}
-                        </div>
+                        <div className="text-sm font-medium">{m.creator?.steam_name} vs {m.opponent?.steam_name || "Waiting..."}</div>
                         <div className="text-xs text-gray-500">{m.format} • {m.best_of}</div>
                       </div>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -158,9 +155,7 @@ export default async function Home() {
                         m.status === "completed" ? "bg-blue-500/15 text-blue-400" :
                         m.status === "disputed" ? "bg-red-500/15 text-red-400" :
                         "bg-gray-500/15 text-gray-400"
-                      }`}>
-                        {m.status}
-                      </span>
+                      }`}>{m.status}</span>
                     </Link>
                   ))
                 ) : (
@@ -170,22 +165,18 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Right */}
           <div className="space-y-6">
-            {/* XP Today card */}
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 relative">
-              <span className="absolute top-4 right-4 text-[10px] uppercase tracking-wider text-gray-500">
-                24hrs
-              </span>
-              <div className="text-sm text-gray-400 mb-2">XP Today</div>
-              <div className={`text-4xl font-black ${
+            {/* XP Today square */}
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl aspect-square flex flex-col items-center justify-center relative">
+              <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider text-gray-500">24hrs</span>
+              <div className={`text-6xl font-black leading-none ${
                 xpToday > 0 ? "text-emerald-400" : xpToday < 0 ? "text-red-400" : "text-gray-400"
               }`}>
                 {xpToday > 0 ? `+${xpToday}` : xpToday}
               </div>
+              <div className="text-xs text-gray-500 mt-2">XP Today</div>
             </div>
 
-            {/* Daily Quests */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold">Daily Quests</h2>
@@ -201,10 +192,7 @@ export default async function Home() {
                         <span>{q.progress}/{q.target}</span>
                       </div>
                       <div className="h-1.5 bg-[#1c1c28] rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#FF5C00] rounded-full"
-                          style={{ width: `${Math.min(100, (q.progress / q.target) * 100)}%` }}
-                        />
+                        <div className="h-full bg-[#FF5C00] rounded-full" style={{ width: `${Math.min(100, (q.progress / q.target) * 100)}%` }} />
                       </div>
                     </div>
                   ))
@@ -214,7 +202,6 @@ export default async function Home() {
               </div>
             </div>
 
-            {/* Top Earners */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold">Top Earners</h2>
@@ -224,9 +211,7 @@ export default async function Home() {
                 {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {topEarners?.map((p: any, i: number) => (
                   <Link key={p.id} href={`/players/${p.id}`} className="flex items-center gap-3 hover:opacity-80 transition">
-                    <span className={`w-5 text-xs font-bold ${
-                      i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-orange-400" : "text-gray-600"
-                    }`}>{i + 1}</span>
+                    <span className={`w-5 text-xs font-bold ${i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-orange-400" : "text-gray-600"}`}>{i + 1}</span>
                     {p.avatar_url && <img src={p.avatar_url} alt="" className="w-7 h-7 rounded-full" />}
                     <span className="text-sm flex-1 truncate">{p.steam_name}</span>
                     <span className="text-xs text-gray-500">{p.wins}W</span>
