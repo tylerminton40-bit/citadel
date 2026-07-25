@@ -48,14 +48,17 @@ export async function createTicket(formData: FormData) {
     .getPublicUrl(fileName)
 
   // Create ticket
-  const { data: ticket, error } = await supabase
-    .from("tickets")
-    .insert({
-      creator_id: profile.id,
-      subject,
-      notes: notes || null,
-      status: "open",
-    })
+ const matchId = formData.get("match_id") as string
+
+const { data: ticket, error } = await supabase
+  .from("tickets")
+  .insert({
+    creator_id: profile.id,
+    match_id: matchId || null,
+    subject,
+    notes: notes || null,
+    status: "open",
+  })
     .select()
     .single()
 
