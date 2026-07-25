@@ -2,7 +2,7 @@ import Link from "next/link"
 import Navbar from "@/components/Navbar"
 import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
-import { getRank } from "@/lib/ranks"
+import { getRank, getNextRank } from "@/lib/ranks"
 import HomeOpenMatches from "@/components/HomeOpenMatches"
 
 export default async function Home() {
@@ -140,6 +140,46 @@ export default async function Home() {
                 <h2 className="font-bold text-lg">Your Matches</h2>
                 <Link href="/matches?tab=yours" className="text-xs text-[#FF5C00] hover:underline">View all →</Link>
               </div>
+			  
+			  {/* Rank Progress */}
+<div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="font-bold text-lg">Rank Progress</h2>
+    <Link href="/ranks" className="text-xs text-[#FF5C00] hover:underline">All ranks →</Link>
+  </div>
+
+  <div className="flex items-center gap-3 mb-5">
+    <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${rank.bg} ${rank.color}`}>
+      {rank.name}
+    </span>
+    <span className="text-sm text-gray-400">{profile.xp} XP</span>
+  </div>
+
+  {getNextRank(profile.xp || 0) ? (
+    <>
+      <div className="flex justify-between text-xs text-gray-500 mb-2">
+        <span>{rank.name}</span>
+        <span>{getNextRank(profile.xp || 0)!.name} • {getNextRank(profile.xp || 0)!.xp} XP</span>
+      </div>
+      <div className="h-3 bg-[#1c1c28] rounded-full overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-[#FF5C00] to-[#FF8A00] rounded-full"
+          style={{
+            width: `${Math.min(
+              100,
+              ((profile.xp - rank.xp) / (getNextRank(profile.xp || 0)!.xp - rank.xp)) * 100
+            )}%`,
+          }}
+        />
+      </div>
+      <div className="text-xs text-gray-500 mt-2">
+        {getNextRank(profile.xp || 0)!.xp - profile.xp} XP to {getNextRank(profile.xp || 0)!.name}
+      </div>
+    </>
+  ) : (
+    <div className="text-sm text-gray-400">Max rank reached.</div>
+  )}
+</div>
               <div className="space-y-3">
                 {yourMatches && yourMatches.length > 0 ? (
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
