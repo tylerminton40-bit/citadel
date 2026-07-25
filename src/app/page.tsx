@@ -57,7 +57,6 @@ export default async function Home() {
 
   const rank = getRank(profile.xp || 0)
 
-  // Open matches
   const { data: openMatches } = await supabase
     .from("matches")
     .select("*, creator:profiles!matches_creator_id_fkey(steam_name, avatar_url)")
@@ -65,7 +64,6 @@ export default async function Home() {
     .order("created_at", { ascending: false })
     .limit(6)
 
-  // Your matches
   const { data: yourMatches } = await supabase
     .from("matches")
     .select("*, creator:profiles!matches_creator_id_fkey(steam_name), opponent:profiles!matches_opponent_id_fkey(steam_name)")
@@ -73,7 +71,6 @@ export default async function Home() {
     .order("created_at", { ascending: false })
     .limit(5)
 
-  // Quests today
   const today = new Date().toISOString().slice(0, 10)
   const { data: quests } = await supabase
     .from("daily_quests")
@@ -81,15 +78,11 @@ export default async function Home() {
     .eq("user_id", profile.id)
     .eq("quest_date", today)
 
-  // Top earners (by wins for now as monthly proxy)
   const { data: topEarners } = await supabase
     .from("profiles")
     .select("*")
     .order("wins", { ascending: false })
     .limit(5)
-
-  // XP today approximation from completed matches as winner/loser would need xp_events
-  // For now show net from wins/losses today isn't tracked precisely - show total XP + rank
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
@@ -124,7 +117,7 @@ export default async function Home() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left column - Matches */}
+          {/* Left column */}
           <div className="lg:col-span-2 space-y-6">
             {/* Open Matches */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
@@ -134,6 +127,7 @@ export default async function Home() {
               </div>
               <div className="space-y-3">
                 {openMatches && openMatches.length > 0 ? (
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   openMatches.map((m: any) => (
                     <Link
                       key={m.id}
@@ -166,6 +160,7 @@ export default async function Home() {
               </div>
               <div className="space-y-3">
                 {yourMatches && yourMatches.length > 0 ? (
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   yourMatches.map((m: any) => (
                     <Link
                       key={m.id}
@@ -206,6 +201,7 @@ export default async function Home() {
               </div>
               <div className="space-y-3">
                 {quests && quests.length > 0 ? (
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   quests.slice(0, 3).map((q: any) => (
                     <div key={q.id}>
                       <div className="flex justify-between text-xs mb-1">
@@ -233,6 +229,7 @@ export default async function Home() {
                 <Link href="/leaderboard" className="text-xs text-[#FF5C00] hover:underline">Full →</Link>
               </div>
               <div className="space-y-3">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {topEarners?.map((p: any, i: number) => (
                   <Link key={p.id} href={`/players/${p.id}`} className="flex items-center gap-3 hover:opacity-80 transition">
                     <span className={`w-5 text-xs font-bold ${
