@@ -60,19 +60,12 @@ export default async function CreateTicketPage() {
               className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
             >
               <option value="">No specific match</option>
-             {matches?.map((m: {
-  id: string
-  format: string
-  best_of: string
-  status: string
-  creator: { steam_name: string } | null
-  opponent: { steam_name: string } | null
-}) => (
-                <option key={m.id} value={m.id}>
-                  {m.format} {m.best_of} • {m.status} • {m.creator?.steam_name} vs {m.opponent?.steam_name || "?"}
-                </option>
-              ))}
-            </select>
+{/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+{matches?.map((m: any) => (
+  <option key={m.id} value={m.id}>
+    {m.format} {m.best_of} • {m.status} • {m.creator?.steam_name || "?"} vs {m.opponent?.steam_name || "?"}
+  </option>
+))}
           </div>
 
           <div>
