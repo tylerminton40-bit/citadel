@@ -57,18 +57,18 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
   const newWinnerId = winner === "creator" ? match.creator_id : match.opponent_id
   const newLoserId = winner === "creator" ? match.opponent_id : match.creator_id
 
-  // If match was already completed, reverse the old XP first
+  // If match was already completed, reverse the old XP + wins/losses
   if (match.status === "completed" && match.winner_id) {
     const oldWinnerId = match.winner_id
     const oldLoserId = oldWinnerId === match.creator_id ? match.opponent_id : match.creator_id
 
-    // Remove old XP
     if (oldWinnerId) {
       await supabase.rpc("increment_xp", { profile_id: oldWinnerId, amount: -30 })
-      // We don't have decrement_wins, so we leave wins/losses for now or you can add those functions later
+      await supabase.rpc("decrement_wins", { profile_id: oldWinnerId })
     }
     if (oldLoserId) {
       await supabase.rpc("increment_xp", { profile_id: oldLoserId, amount: -10 })
+      await supabase.rpc("decrement_losses", { profile_id: oldLoserId })
     }
   }
 
@@ -82,7 +82,7 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
     })
     .eq("id", matchId)
 
-  // Give new XP
+  // Give new XP + wins/losses
   if (newWinnerId) {
     await supabase.rpc("increment_xp", { profile_id: newWinnerId, amount: 30 })
     await supabase.rpc("increment_wins", { profile_id: newWinnerId })
@@ -97,7 +97,7 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
     .from("tickets")
     .update({
       status: "resolved",
-      admin_response: `Admin set the winner. Match updated.`,
+      admin_response: `Admin set the winner. Match and stats updated.`,
       resolved_at: new Date().toISOString(),
     })
     .eq("id", ticketId)
