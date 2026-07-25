@@ -115,10 +115,6 @@ export default async function Home() {
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${rank.bg} ${rank.color}`}>{rank.name}</span>
                 <span className="text-gray-400">{profile.xp} XP</span>
                 <span className="text-gray-600">•</span>
-                <span className={xpToday > 0 ? "text-emerald-400" : xpToday < 0 ? "text-red-400" : "text-gray-400"}>
-                  {xpToday > 0 ? `+${xpToday}` : xpToday} today
-                </span>
-                <span className="text-gray-600">•</span>
                 <span className="text-emerald-400">{profile.wins}W</span>
                 <span className="text-red-400">{profile.losses}L</span>
               </div>
@@ -135,6 +131,7 @@ export default async function Home() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
@@ -182,7 +179,22 @@ export default async function Home() {
             </div>
           </div>
 
+          {/* Right */}
           <div className="space-y-6">
+            {/* XP Today card */}
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 relative">
+              <span className="absolute top-4 right-4 text-[10px] uppercase tracking-wider text-gray-500">
+                24hrs
+              </span>
+              <div className="text-sm text-gray-400 mb-2">XP Today</div>
+              <div className={`text-4xl font-black ${
+                xpToday > 0 ? "text-emerald-400" : xpToday < 0 ? "text-red-400" : "text-gray-400"
+              }`}>
+                {xpToday > 0 ? `+${xpToday}` : xpToday}
+              </div>
+            </div>
+
+            {/* Daily Quests */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold">Daily Quests</h2>
@@ -211,6 +223,7 @@ export default async function Home() {
               </div>
             </div>
 
+            {/* Top Earners */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold">Top Earners</h2>
