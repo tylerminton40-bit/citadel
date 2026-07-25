@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { createClient } from "@supabase/supabase-js"
 
 type Message = {
@@ -29,83 +29,81 @@ export default function MatchLive({
   const [messages, setMessages] = useState(initialMessages)
   const [newMessage, setNewMessage] = useState("")
   const [codeInput, setCodeInput] = useState("")
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  // Realtime subscription
+  // Auto scroll to bottom when messages change
   useEffect(() => {
-    const channel = supabase
-      .channel(`match-${matchId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "matches", filter: `id=eq.${matchId}` },
-        (payload) => {
-          if (payload.new.private_code) {
-            setCode(payload.new.private_code)
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "match_messages", filter: `match_id=eq.${matchId}` },
-        async (payload) => {
-          // Fetch the sender name
-          const { data } = await supabase
-            .from("profiles")
-            .select("steam_name")
-            .eq("id", payload.new.sender_id)
-            .single()
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: payload.new.id,
-              message: payload.new.message,
-              sender: data,
-              created_at: payload.new.created_at,
-            },
-          ])
-        }
-      )
-      .subscribe()
+  // Poll for new messages + code every 3 seconds (reliable)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      // Get latest messages
+      const { data: newMessages } = await supabase
+        .from("match_messages")
+        .select("*, sender:profiles(steam_name)")
+        .eq("match_id", matchId)
+        .order("created_at", { ascending: true })
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+      if (newMessages) {
+        setMessages(newMessages)
+      }
+
+      // Get latest code
+      const { data: matchData } = await supabase
+        .from("matches")
+        .select("private_code")
+        .eq("id", matchId)
+        .single()
+
+      if (matchData?.private_code) {
+        setCode(matchData.private_code)
+      }
+    }, 3000)
+
+    return () => clearInterval(interval)
   }, [matchId])
 
   async function postCode() {
     if (!codeInput.trim()) return
     await fetch("/api/match-code", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ matchId, code: codeInput }),
     })
+    setCode(codeInput)
     setCodeInput("")
   }
 
-async function sendChat() {
-  if (!newMessage.trim()) return
+  async function sendChat() {
+    if (!newMessage.trim()) return
 
-  const tempId = crypto.randomUUID()
-  const tempMessage = {
-    id: tempId,
-    message: newMessage,
-    sender: { steam_name: "You" },
-    created_at: new Date().toISOString(),
+    const text = newMessage
+    setNewMessage("")
+
+    // Optimistic update
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID(),
+        message: text,
+        sender: { steam_name: "You" },
+        created_at: new Date().toISOString(),
+      },
+    ])
+
+    await fetch("/api/match-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId, message: text }),
+    })
   }
-
-  // Show instantly
-  setMessages((prev) => [...prev, tempMessage])
-  setNewMessage("")
-
-  await fetch("/api/match-chat", {
-    method: "POST",
-    body: JSON.stringify({ matchId, message: tempMessage.message }),
-  })
-}
 
   return (
     <div className="space-y-6">
@@ -140,17 +138,20 @@ async function sendChat() {
       <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
         <h3 className="font-bold mb-4">Match Chat</h3>
 
-        <div className="h-48 overflow-y-auto bg-[#08080d] rounded-xl p-4 mb-4 space-y-3">
+        <div className="h-52 overflow-y-auto bg-[#08080d] rounded-xl p-4 mb-4 space-y-3">
           {messages.length > 0 ? (
             messages.map((msg) => (
               <div key={msg.id} className="text-sm">
-                <span className="font-medium text-[#FF5C00]">{msg.sender?.steam_name}: </span>
+                <span className="font-medium text-[#FF5C00]">
+                  {msg.sender?.steam_name || "Unknown"}:{" "}
+                </span>
                 <span className="text-gray-300">{msg.message}</span>
               </div>
             ))
           ) : (
             <div className="text-gray-500 text-sm text-center py-8">No messages yet</div>
           )}
+          <div ref={bottomRef} />
         </div>
 
         {isParticipant && (
