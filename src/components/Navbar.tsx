@@ -40,6 +40,9 @@ export default async function Navbar() {
 		  <Link href="/tickets" className="text-sm text-gray-400 hover:text-white transition">
   Tickets
 </Link>
+<Link href="/rules" className="text-sm text-gray-400 hover:text-white transition">
+  Rules
+</Link>
 <Link href="/matches" className="text-sm text-gray-400 hover:text-white transition">
   Match Finder
 </Link>
