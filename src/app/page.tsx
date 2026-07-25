@@ -3,6 +3,7 @@ import Navbar from "@/components/Navbar"
 import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 import { getRank } from "@/lib/ranks"
+import HomeOpenMatches from "@/components/HomeOpenMatches"
 
 function timeAgo(date: string) {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
@@ -125,32 +126,18 @@ export default async function Home() {
                 <h2 className="font-bold text-lg">Open Matches</h2>
                 <Link href="/matches" className="text-xs text-[#FF5C00] hover:underline">View all →</Link>
               </div>
-              <div className="space-y-3">
-                {openMatches && openMatches.length > 0 ? (
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  openMatches.map((m: any) => (
-                    <Link
-                      key={m.id}
-                      href={`/matches/${m.id}`}
-                      className="flex items-center justify-between p-3 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] transition"
-                    >
-                      <div className="flex items-center gap-3">
-                        {m.creator?.avatar_url && (
-                          <img src={m.creator.avatar_url} alt="" className="w-8 h-8 rounded-full" />
-                        )}
-                        <div>
-                          <div className="text-sm font-medium">{m.creator?.steam_name}</div>
-                          <div className="text-xs text-gray-500">{m.format} • {m.best_of} • {m.region}</div>
-                        </div>
-                      </div>
-                      <span className="text-xs text-gray-500">{timeAgo(m.created_at)}</span>
-                    </Link>
-                  ))
-                ) : (
-                  <div className="text-sm text-gray-500 py-6 text-center">No open matches right now</div>
-                )}
+<HomeOpenMatches initialMatches={openMatches || []} />
               </div>
             </div>
+
+
+
+
+
+
+
+
+
 
             {/* Your Matches */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
@@ -243,16 +230,6 @@ export default async function Home() {
               </div>
             </div>
 
-            {/* Quick Links */}
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
-              <h2 className="font-bold mb-3">Quick Links</h2>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <Link href="/players" className="p-2.5 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] text-center transition">Players</Link>
-                <Link href="/ranks" className="p-2.5 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] text-center transition">Ranks</Link>
-                <Link href="/tickets" className="p-2.5 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] text-center transition">Tickets</Link>
-                <Link href="/rules" className="p-2.5 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] text-center transition">Rules</Link>
-              </div>
-            </div>
           </div>
         </div>
       </main>

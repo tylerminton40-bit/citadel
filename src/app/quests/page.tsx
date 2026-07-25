@@ -105,6 +105,9 @@ export default async function QuestsPage() {
           })}
         </div>
       </main>
+	  <Link href="/" className="text-sm text-gray-400 hover:text-white mb-6 inline-block">
+  ← Back to Hub
+</Link>
     </div>
   )
 }
