@@ -49,27 +49,18 @@ export default async function Home() {
 
   const rank = getRank(profile.xp || 0)
 
-  // XP today
-  const startOfDay = new Date()
-  startOfDay.setHours(0, 0, 0, 0)
-
-  const { data: todaysMatches } = await supabase
-    .from("matches")
-    .select("winner_id, creator_id, opponent_id, status, completed_at")
-    .eq("status", "completed")
-    .gte("completed_at", startOfDay.toISOString())
-    .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
-
-  let xpToday = 0
-  if (todaysMatches) {
-    for (const m of todaysMatches) {
-      if (m.winner_id === profile.id) {
-        xpToday += 30
-      } else if (m.creator_id === profile.id || m.opponent_id === profile.id) {
-        xpToday -= 20
-      }
-    }
-  }
+{/* XP Today card */}
+<div className="bg-[#111118] border border-[#1c1c28] rounded-2xl aspect-square flex flex-col items-center justify-center relative">
+  <span className="absolute top-3 right-3 text-[10px] uppercase tracking-wider text-gray-500">
+    24hrs
+  </span>
+  <div className={`text-6xl font-black leading-none ${
+    xpToday > 0 ? "text-emerald-400" : xpToday < 0 ? "text-red-400" : "text-gray-400"
+  }`}>
+    {xpToday > 0 ? `+${xpToday}` : xpToday}
+  </div>
+  <div className="text-xs text-gray-500 mt-2">XP Today</div>
+</div>
 
   const { data: openMatches } = await supabase
     .from("matches")
