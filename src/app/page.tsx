@@ -28,7 +28,6 @@ export default async function Home() {
     profile = data
   }
 
-  // Logged out → marketing page
   if (!profile) {
     return (
       <div className="min-h-screen bg-[#08080d] text-gray-200">
@@ -118,28 +117,16 @@ export default async function Home() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          {/* Left column */}
+          {/* Left */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Open Matches */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-lg">Open Matches</h2>
                 <Link href="/matches" className="text-xs text-[#FF5C00] hover:underline">View all →</Link>
               </div>
-<HomeOpenMatches initialMatches={openMatches || []} />
-              </div>
+              <HomeOpenMatches initialMatches={openMatches || []} />
             </div>
 
-
-
-
-
-
-
-
-
-
-            {/* Your Matches */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-lg">Your Matches</h2>
@@ -178,9 +165,8 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Right column */}
+          {/* Right */}
           <div className="space-y-6">
-            {/* Quests */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold">Daily Quests</h2>
@@ -209,7 +195,6 @@ export default async function Home() {
               </div>
             </div>
 
-            {/* Top Earners */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold">Top Earners</h2>
@@ -229,7 +214,6 @@ export default async function Home() {
                 ))}
               </div>
             </div>
-
           </div>
         </div>
       </main>
