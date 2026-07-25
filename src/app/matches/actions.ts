@@ -19,7 +19,6 @@ export async function cancelMatch(matchId: string) {
   const { data: profile } = await supabase
     .from("profiles")
     .select("id")
-    .select("id")
     .eq("steam_id", steamId)
     .single()
 
@@ -53,7 +52,6 @@ export async function acceptMatch(matchId: string) {
 
   if (!profile) redirect("/")
 
-  // Check if player already has an active match
   const { data: existing } = await supabase
     .from("matches")
     .select("id")
@@ -65,7 +63,6 @@ export async function acceptMatch(matchId: string) {
     redirect("/matches?error=already_in_match")
   }
 
-  // Get the match first so we know the creator
   const { data: match } = await supabase
     .from("matches")
     .select("*")
@@ -81,23 +78,21 @@ export async function acceptMatch(matchId: string) {
       opponent_id: profile.id,
       status: "accepted",
       accepted_at: new Date().toISOString(),
-      host_id: match.creator_id
+      host_id: match.creator_id,
     })
     .eq("id", matchId)
 
-  // Notify the creator
   await createNotification({
     userId: match.creator_id,
     type: "match_accepted",
     title: "Match Accepted",
     message: `${profile.steam_name} accepted your match`,
-    link: `/matches/${matchId}`
+    link: `/matches/${matchId}`,
   })
 
   revalidatePath(`/matches/${matchId}`)
   redirect(`/matches/${matchId}`)
 }
-
 
 export async function setPrivateCode(matchId: string, formData: FormData) {
   const code = formData.get("code") as string
@@ -124,7 +119,7 @@ export async function setPrivateCode(matchId: string, formData: FormData) {
     .from("matches")
     .update({ private_code: code })
     .eq("id", matchId)
-    .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+    .eq("creator_id", profile.id)
 
   revalidatePath(`/matches/${matchId}`)
 }
@@ -153,14 +148,14 @@ export async function sendMessage(matchId: string, formData: FormData) {
   await supabase.from("match_messages").insert({
     match_id: matchId,
     sender_id: profile.id,
-    message: message.trim()
+    message: message.trim(),
   })
 
   revalidatePath(`/matches/${matchId}`)
 }
 
 export async function reportResult(matchId: string, formData: FormData) {
-  const winner = formData.get("winner") as string // "creator" or "opponent"
+  const winner = formData.get("winner") as string
   if (!winner) return
 
   const cookieStore = await cookies()
@@ -192,18 +187,12 @@ export async function reportResult(matchId: string, formData: FormData) {
   const isOpponent = profile.id === match.opponent_id
   if (!isCreator && !isOpponent) return
 
-  // Save this player's report
   const updateData: { creator_report?: string; opponent_report?: string } = {}
   if (isCreator) updateData.creator_report = winner
   if (isOpponent) updateData.opponent_report = winner
 
-  await supabase
-    .from("matches")
-    .update(updateData)
-    .eq("id", matchId)
+  await supabase.from("matches").update(updateData).eq("id", matchId)
 
-
-  // Re-fetch to see both reports
   const { data: updated } = await supabase
     .from("matches")
     .select("*")
@@ -212,93 +201,88 @@ export async function reportResult(matchId: string, formData: FormData) {
 
   if (!updated) return
 
-// Notify the other player that a report was submitted
-const otherPlayerId = isCreator ? updated.opponent_id : updated.creator_id
-if (otherPlayerId) {
-  await createNotification({
-    userId: otherPlayerId,
-    type: "result_reported",
-    title: "Result Reported",
-    message: "Your opponent submitted a result report",
-    link: `/matches/${matchId}`
-  })
-}
-
-// If the match just completed (both agreed)
-if (updated.creator_report && updated.opponent_report && updated.creator_report === updated.opponent_report) {
-  // notify both that match is complete (optional extra)
-}
-
-// Both have reported
-if (updated.creator_report && updated.opponent_report) {
-  if (updated.creator_report === updated.opponent_report) {
-    // They agree → complete the match
-    const winnerId = updated.creator_report === "creator" ? updated.creator_id : updated.opponent_id
-    const loserId = updated.creator_report === "creator" ? updated.opponent_id : updated.creator_id
-
-    await supabase
-      .from("matches")
-      .update({
-        status: "completed",
-        winner_id: winnerId,
-        completed_at: new Date().toISOString()
-      })
-      .eq("id", matchId)
-
-    // Give XP
-    if (winnerId) {
-      await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
-      await supabase.rpc("increment_wins", { profile_id: winnerId })
-    }
-    if (loserId) {
-      await supabase.rpc("increment_xp", { profile_id: loserId, amount: -20 })
-      await supabase.rpc("increment_losses", { profile_id: loserId })
-    }
-  } else {
-	  // Update daily quests for both players
-const today = new Date().toISOString().slice(0, 10)
-
-async function bumpQuest(userId: string, key: string, amount = 1) {
-  const { data: quest } = await supabase
-    .from("daily_quests")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("quest_key", key)
-    .eq("quest_date", today)
-    .single()
-
-  if (quest && !quest.claimed) {
-    const newProgress = Math.min(quest.progress + amount, quest.target)
-    await supabase
-      .from("daily_quests")
-      .update({
-        progress: newProgress,
-        completed: newProgress >= quest.target,
-      })
-      .eq("id", quest.id)
+  // Notify the other player
+  const otherPlayerId = isCreator ? updated.opponent_id : updated.creator_id
+  if (otherPlayerId) {
+    await createNotification({
+      userId: otherPlayerId,
+      type: "result_reported",
+      title: "Result Reported",
+      message: "Your opponent submitted a result report",
+      link: `/matches/${matchId}`,
+    })
   }
-}
 
-// Both players played a match
-if (winnerId) await bumpQuest(winnerId, "play_2")
-if (loserId) await bumpQuest(loserId, "play_2")
+  // Both reported
+  if (updated.creator_report && updated.opponent_report) {
+    if (updated.creator_report === updated.opponent_report) {
+      // Agree → complete
+      const winnerId =
+        updated.creator_report === "creator" ? updated.creator_id : updated.opponent_id
+      const loserId =
+        updated.creator_report === "creator" ? updated.opponent_id : updated.creator_id
 
-// Winner progress
-if (winnerId) {
-  await bumpQuest(winnerId, "win_1")
-  await bumpQuest(winnerId, "win_2")
-}
-    // They disagree → disputed
-    await supabase
-      .from("matches")
-      .update({ status: "disputed" })
-      .eq("id", matchId)
+      await supabase
+        .from("matches")
+        .update({
+          status: "completed",
+          winner_id: winnerId,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", matchId)
+
+      // XP: +30 win, -20 loss
+      if (winnerId) {
+        await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
+        await supabase.rpc("increment_wins", { profile_id: winnerId })
+      }
+      if (loserId) {
+        await supabase.rpc("increment_xp", { profile_id: loserId, amount: -20 })
+        await supabase.rpc("increment_losses", { profile_id: loserId })
+      }
+
+      // Daily quests
+      const today = new Date().toISOString().slice(0, 10)
+
+      async function bumpQuest(userId: string, key: string) {
+        const { data: quest } = await supabase
+          .from("daily_quests")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("quest_key", key)
+          .eq("quest_date", today)
+          .single()
+
+        if (quest && !quest.claimed) {
+          const newProgress = Math.min(quest.progress + 1, quest.target)
+          await supabase
+            .from("daily_quests")
+            .update({
+              progress: newProgress,
+              completed: newProgress >= quest.target,
+            })
+            .eq("id", quest.id)
+        }
+      }
+
+      if (winnerId) {
+        await bumpQuest(winnerId, "play_2")
+        await bumpQuest(winnerId, "win_1")
+        await bumpQuest(winnerId, "win_2")
+      }
+      if (loserId) {
+        await bumpQuest(loserId, "play_2")
+      }
+    } else {
+      // Disagree → disputed
+      await supabase
+        .from("matches")
+        .update({ status: "disputed" })
+        .eq("id", matchId)
+    }
   }
-} else {
-  // Only one person has reported → keep it as accepted (pending second report)
-  // Do nothing extra
-}
 
   revalidatePath(`/matches/${matchId}`)
   revalidatePath("/profile")
+  revalidatePath("/quests")
 }
