@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState, useRef } from "react"
-import { createClient } from "@supabase/supabase-js"
 
 type Message = {
   id: string
@@ -29,43 +28,28 @@ export default function MatchLive({
   const [messages, setMessages] = useState(initialMessages)
   const [newMessage, setNewMessage] = useState("")
   const [codeInput, setCodeInput] = useState("")
+  const [lastUpdate, setLastUpdate] = useState(Date.now())
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
-  // Auto scroll to bottom when messages change
+  // Auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  // Poll for new messages + code every 3 seconds (reliable)
+  // Poll every 2.5 seconds
   useEffect(() => {
     const interval = setInterval(async () => {
-      // Get latest messages
-      const { data: newMessages } = await supabase
-        .from("match_messages")
-        .select("*, sender:profiles(steam_name)")
-        .eq("match_id", matchId)
-        .order("created_at", { ascending: true })
+      try {
+        const res = await fetch(`/api/match-live?matchId=${matchId}&t=${Date.now()}`)
+        const data = await res.json()
 
-      if (newMessages) {
-        setMessages(newMessages)
+        if (data.code) setCode(data.code)
+        if (data.messages) setMessages(data.messages)
+        setLastUpdate(Date.now())
+      } catch (err) {
+        console.error("Live update failed", err)
       }
-
-      // Get latest code
-      const { data: matchData } = await supabase
-        .from("matches")
-        .select("private_code")
-        .eq("id", matchId)
-        .single()
-
-      if (matchData?.private_code) {
-        setCode(matchData.private_code)
-      }
-    }, 3000)
+    }, 2500)
 
     return () => clearInterval(interval)
   }, [matchId])
@@ -83,11 +67,10 @@ export default function MatchLive({
 
   async function sendChat() {
     if (!newMessage.trim()) return
-
     const text = newMessage
     setNewMessage("")
 
-    // Optimistic update
+    // Show immediately
     setMessages((prev) => [
       ...prev,
       {
@@ -109,7 +92,11 @@ export default function MatchLive({
     <div className="space-y-6">
       {/* Private Code */}
       <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
-        <h3 className="font-bold mb-4 text-purple-400">Private Match Code</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-purple-400">Private Match Code</h3>
+          <span className="text-xs text-gray-500">Updates live</span>
+        </div>
+
         {code ? (
           <div className="text-2xl font-mono font-bold tracking-widest text-center py-4 bg-[#08080d] rounded-xl">
             {code}
@@ -136,7 +123,10 @@ export default function MatchLive({
 
       {/* Chat */}
       <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
-        <h3 className="font-bold mb-4">Match Chat</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold">Match Chat</h3>
+          <span className="text-xs text-gray-500">Auto-refreshing</span>
+        </div>
 
         <div className="h-52 overflow-y-auto bg-[#08080d] rounded-xl p-4 mb-4 space-y-3">
           {messages.length > 0 ? (
