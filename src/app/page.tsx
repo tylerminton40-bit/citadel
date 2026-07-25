@@ -20,52 +20,26 @@ export default async function Home() {
     profile = data
   }
 
-  if (!profile) {
-    return (
-      <div className="min-h-screen bg-[#08080d] text-gray-200">
-        <Navbar />
-        <section className="relative pt-24 sm:pt-28 pb-20 sm:pb-28 text-center px-4">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#FF5C00]/15 via-transparent to-transparent pointer-events-none" />
-          <div className="relative z-10 max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF5C00]/10 border border-[#FF5C00]/30 text-[#FF5C00] text-xs font-semibold mb-6 sm:mb-8">
-              <span className="w-2 h-2 rounded-full bg-[#FF5C00] animate-pulse"></span>
-              LIVE • Deadlock Competitive Platform
-            </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold mb-5 sm:mb-6 leading-[1.1]">
-              COMPETE FOR<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF5C00] to-[#FF8A00]">GLORY</span>
-            </h1>
-            <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-8 sm:mb-12 px-2">
-              XP matches, exclusive ranks, disputes, and a real competitive ladder for Deadlock.
-            </p>
-            <a href="/api/steam/login" className="btn-primary px-8 sm:px-10 py-3.5 sm:py-4 rounded-xl text-sm sm:text-base font-semibold glow-orange inline-block">
-              Login with Steam
-            </a>
-          </div>
-        </section>
-      </div>
-    )
-  }
+  const rank = getRank(profile?.xp || 0)
+  const nextRank = getNextRank(profile?.xp || 0)
 
-  const rank = getRank(profile.xp || 0)
-  const nextRank = getNextRank(profile.xp || 0)
-
-  // XP today
-  const startOfDay = new Date()
-  startOfDay.setHours(0, 0, 0, 0)
-
-  const { data: todaysMatches } = await supabase
-    .from("matches")
-    .select("winner_id, creator_id, opponent_id, status, completed_at")
-    .eq("status", "completed")
-    .gte("completed_at", startOfDay.toISOString())
-    .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
-
+  // XP today (only if logged in)
   let xpToday = 0
-  if (todaysMatches) {
-    for (const m of todaysMatches) {
-      if (m.winner_id === profile.id) xpToday += 30
-      else if (m.creator_id === profile.id || m.opponent_id === profile.id) xpToday -= 20
+  if (profile) {
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+    const { data: todaysMatches } = await supabase
+      .from("matches")
+      .select("winner_id, creator_id, opponent_id, status, completed_at")
+      .eq("status", "completed")
+      .gte("completed_at", startOfDay.toISOString())
+      .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+
+    if (todaysMatches) {
+      for (const m of todaysMatches) {
+        if (m.winner_id === profile.id) xpToday += 30
+        else if (m.creator_id === profile.id || m.opponent_id === profile.id) xpToday -= 20
+      }
     }
   }
 
@@ -76,19 +50,25 @@ export default async function Home() {
     .order("created_at", { ascending: false })
     .limit(6)
 
-  const { data: yourMatches } = await supabase
-    .from("matches")
-    .select("*, creator:profiles!matches_creator_id_fkey(steam_name), opponent:profiles!matches_opponent_id_fkey(steam_name)")
-    .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
-    .order("created_at", { ascending: false })
-    .limit(5)
+  let yourMatches = null
+  let quests = null
+  if (profile) {
+    const { data: ym } = await supabase
+      .from("matches")
+      .select("*, creator:profiles!matches_creator_id_fkey(steam_name), opponent:profiles!matches_opponent_id_fkey(steam_name)")
+      .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+      .order("created_at", { ascending: false })
+      .limit(5)
+    yourMatches = ym
 
-  const today = new Date().toISOString().slice(0, 10)
-  const { data: quests } = await supabase
-    .from("daily_quests")
-    .select("*")
-    .eq("user_id", profile.id)
-    .eq("quest_date", today)
+    const today = new Date().toISOString().slice(0, 10)
+    const { data: q } = await supabase
+      .from("daily_quests")
+      .select("*")
+      .eq("user_id", profile.id)
+      .eq("quest_date", today)
+    quests = q
+  }
 
   const { data: topEarners } = await supabase
     .from("profiles")
@@ -97,7 +77,7 @@ export default async function Home() {
     .limit(5)
 
   const progress = nextRank
-    ? Math.min(100, ((profile.xp - rank.xp) / (nextRank.xp - rank.xp)) * 100)
+    ? Math.min(100, (((profile?.xp || 0) - rank.xp) / (nextRank.xp - rank.xp)) * 100)
     : 100
 
   return (
@@ -108,27 +88,41 @@ export default async function Home() {
         {/* Top status strip */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-5 mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 sm:gap-4">
-            {profile.avatar_url && (
+            {profile?.avatar_url ? (
               <img src={profile.avatar_url} alt="" className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-[#FF5C00]" />
+            ) : (
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-[#1c1c28] bg-[#08080d] flex items-center justify-center text-gray-600 text-lg font-bold">
+                ?
+              </div>
             )}
             <div>
-              <div className="font-bold text-base sm:text-lg">{profile.steam_name}</div>
+              <div className="font-bold text-base sm:text-lg">
+                {profile ? profile.steam_name : "Guest"}
+              </div>
               <div className="flex items-center gap-2 text-sm flex-wrap">
                 <span className={`px-2 py-0.5 rounded text-xs font-medium ${rank.bg} ${rank.color}`}>{rank.name}</span>
-                <span className="text-gray-400">{profile.xp} XP</span>
+                <span className="text-gray-400">{profile?.xp || 0} XP</span>
                 <span className="text-gray-600">•</span>
-                <span className="text-emerald-400">{profile.wins}W</span>
-                <span className="text-red-400">{profile.losses}L</span>
+                <span className="text-emerald-400">{profile?.wins || 0}W</span>
+                <span className="text-red-400">{profile?.losses || 0}L</span>
               </div>
             </div>
           </div>
           <div className="flex gap-3 w-full sm:w-auto">
-            <Link href="/matches/create" className="btn-primary flex-1 sm:flex-none text-center px-5 py-2.5 rounded-xl text-sm">
-              + Create Match
-            </Link>
-            <Link href="/matches" className="flex-1 sm:flex-none text-center px-5 py-2.5 rounded-xl border border-[#1c1c28] text-sm hover:border-[#FF5C00]/50 transition">
-              Find Match
-            </Link>
+            {profile ? (
+              <>
+                <Link href="/matches/create" className="btn-primary flex-1 sm:flex-none text-center px-5 py-2.5 rounded-xl text-sm">
+                  + Create Match
+                </Link>
+                <Link href="/matches" className="flex-1 sm:flex-none text-center px-5 py-2.5 rounded-xl border border-[#1c1c28] text-sm hover:border-[#FF5C00]/50 transition">
+                  Find Match
+                </Link>
+              </>
+            ) : (
+              <a href="/api/steam/login" className="btn-primary flex-1 sm:flex-none text-center px-5 py-2.5 rounded-xl text-sm">
+                Login with Steam
+              </a>
+            )}
           </div>
         </div>
 
@@ -149,7 +143,7 @@ export default async function Home() {
                 <Link href="/matches?tab=yours" className="text-xs text-[#FF5C00] hover:underline">View all →</Link>
               </div>
               <div className="space-y-3">
-                {yourMatches && yourMatches.length > 0 ? (
+                {profile && yourMatches && yourMatches.length > 0 ? (
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   yourMatches.map((m: any) => (
                     <Link
@@ -173,7 +167,9 @@ export default async function Home() {
                     </Link>
                   ))
                 ) : (
-                  <div className="text-sm text-gray-500 py-6 text-center">No matches yet</div>
+                  <div className="text-sm text-gray-500 py-6 text-center">
+                    {profile ? "No matches yet" : "Login to see your matches"}
+                  </div>
                 )}
               </div>
             </div>
@@ -188,7 +184,7 @@ export default async function Home() {
                 <span className={`px-3 py-1.5 rounded-full text-sm font-bold ${rank.bg} ${rank.color}`}>
                   {rank.name}
                 </span>
-                <span className="text-sm text-gray-400">{profile.xp} XP</span>
+                <span className="text-sm text-gray-400">{profile?.xp || 0} XP</span>
               </div>
               {nextRank ? (
                 <>
@@ -203,7 +199,7 @@ export default async function Home() {
                     />
                   </div>
                   <div className="text-xs text-gray-500 mt-2">
-                    {nextRank.xp - profile.xp} XP to {nextRank.name}
+                    {nextRank.xp - (profile?.xp || 0)} XP to {nextRank.name}
                   </div>
                 </>
               ) : (
@@ -231,7 +227,7 @@ export default async function Home() {
                 <Link href="/quests" className="text-xs text-[#FF5C00] hover:underline">All →</Link>
               </div>
               <div className="space-y-3">
-                {quests && quests.length > 0 ? (
+                {profile && quests && quests.length > 0 ? (
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   quests.slice(0, 3).map((q: any) => (
                     <div key={q.id}>
@@ -245,7 +241,9 @@ export default async function Home() {
                     </div>
                   ))
                 ) : (
-                  <div className="text-sm text-gray-500">No quests yet — visit Quests page</div>
+                  <div className="text-sm text-gray-500">
+                    {profile ? "No quests yet — visit Quests page" : "Login to track quests"}
+                  </div>
                 )}
               </div>
             </div>
