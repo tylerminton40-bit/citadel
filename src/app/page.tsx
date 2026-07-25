@@ -2,154 +2,263 @@ import Link from "next/link"
 import Navbar from "@/components/Navbar"
 import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
+import { getRank } from "@/lib/ranks"
+
+function timeAgo(date: string) {
+  const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
+  if (seconds < 60) return `${seconds}s ago`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+  return `${Math.floor(seconds / 86400)}d ago`
+}
 
 export default async function Home() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
 
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
   let profile = null
   if (steamId) {
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
     const { data } = await supabase.from("profiles").select("*").eq("steam_id", steamId).single()
     profile = data
   }
+
+  // Logged out → marketing page
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-[#08080d] text-gray-200">
+        <Navbar />
+        <section className="relative pt-28 pb-28 text-center px-4">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#FF5C00]/15 via-transparent to-transparent pointer-events-none" />
+          <div className="relative z-10 max-w-4xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF5C00]/10 border border-[#FF5C00]/30 text-[#FF5C00] text-xs font-semibold mb-8">
+              <span className="w-2 h-2 rounded-full bg-[#FF5C00] animate-pulse"></span>
+              LIVE • Deadlock Competitive Platform
+            </div>
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-[1.1]">
+              COMPETE FOR<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF5C00] to-[#FF8A00]">GLORY</span>
+            </h1>
+            <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-12">
+              XP matches, exclusive ranks, disputes, and a real competitive ladder for Deadlock.
+            </p>
+            <a href="/api/steam/login" className="btn-primary px-10 py-4 rounded-xl text-base font-semibold glow-orange">
+              Login with Steam
+            </a>
+          </div>
+        </section>
+      </div>
+    )
+  }
+
+  const rank = getRank(profile.xp || 0)
+
+  // Open matches
+  const { data: openMatches } = await supabase
+    .from("matches")
+    .select("*, creator:profiles!matches_creator_id_fkey(steam_name, avatar_url)")
+    .eq("status", "open")
+    .order("created_at", { ascending: false })
+    .limit(6)
+
+  // Your matches
+  const { data: yourMatches } = await supabase
+    .from("matches")
+    .select("*, creator:profiles!matches_creator_id_fkey(steam_name), opponent:profiles!matches_opponent_id_fkey(steam_name)")
+    .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+    .order("created_at", { ascending: false })
+    .limit(5)
+
+  // Quests today
+  const today = new Date().toISOString().slice(0, 10)
+  const { data: quests } = await supabase
+    .from("daily_quests")
+    .select("*")
+    .eq("user_id", profile.id)
+    .eq("quest_date", today)
+
+  // Top earners (by wins for now as monthly proxy)
+  const { data: topEarners } = await supabase
+    .from("profiles")
+    .select("*")
+    .order("wins", { ascending: false })
+    .limit(5)
+
+  // XP today approximation from completed matches as winner/loser would need xp_events
+  // For now show net from wins/losses today isn't tracked precisely - show total XP + rank
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
 
-      {/* Hero */}
-      <section className="relative pt-28 pb-28 text-center px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[#FF5C00]/15 via-transparent to-transparent pointer-events-none" />
-        
-        <div className="relative z-10 max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF5C00]/10 border border-[#FF5C00]/30 text-[#FF5C00] text-xs font-semibold mb-8">
-            <span className="w-2 h-2 rounded-full bg-[#FF5C00] animate-pulse"></span>
-            LIVE • Deadlock Competitive Platform
-          </div>
-
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold mb-6 leading-[1.1] tracking-tight">
-            COMPETE FOR<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FF5C00] via-[#FF8A00] to-[#FF5C00]">
-              GLORY
-            </span>
-          </h1>
-
-          <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-12 leading-relaxed">
-            The competitive home for Deadlock. XP matches, exclusive ranks from Ember to Eternal, 
-            and a clean dispute system. Login with Steam. Climb the Citadel.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            {profile ? (
-              <>
-                <Link href="/matches" className="btn-primary px-10 py-4 rounded-xl text-base font-semibold glow-orange">
-                  Find a Match
-                </Link>
-                <Link href="/ranks" className="px-8 py-4 rounded-xl border border-[#1c1c28] hover:border-[#FF5C00]/50 transition text-sm">
-                  View Ranks
-                </Link>
-              </>
-            ) : (
-              <a href="/api/steam/login" className="btn-primary px-10 py-4 rounded-xl text-base font-semibold glow-orange">
-                Login with Steam
-              </a>
+      <main className="max-w-6xl mx-auto px-4 py-10">
+        {/* Top status strip */}
+        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 mb-8 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            {profile.avatar_url && (
+              <img src={profile.avatar_url} alt="" className="w-14 h-14 rounded-full border-2 border-[#FF5C00]" />
             )}
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section className="py-20 border-t border-[#1c1c28]">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-2xl font-bold text-center mb-12">Everything you need to compete</h2>
-          
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-7 hover:border-[#FF5C00]/40 transition group">
-              <div className="w-12 h-12 rounded-xl bg-[#FF5C00]/10 flex items-center justify-center mb-5 text-[#FF5C00] font-bold text-lg group-hover:scale-110 transition">
-                XP
+            <div>
+              <div className="font-bold text-lg">{profile.steam_name}</div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${rank.bg} ${rank.color}`}>{rank.name}</span>
+                <span className="text-gray-400">{profile.xp} XP</span>
+                <span className="text-gray-600">•</span>
+                <span className="text-emerald-400">{profile.wins}W</span>
+                <span className="text-red-400">{profile.losses}L</span>
               </div>
-              <h3 className="font-bold text-lg mb-2">XP Matches</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Free competitive matches. Every game earns XP. Climb from Ember all the way to Eternal.
-              </p>
-            </div>
-
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-7 hover:border-purple-500/40 transition group">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-5 text-purple-400 font-bold text-lg group-hover:scale-110 transition">
-                SB
-              </div>
-              <h3 className="font-bold text-lg mb-2">Street Brawl & Normal</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                1v1–4v4 play Street Brawl. 6v6 plays Normal. Clean formats, no confusion.
-              </p>
-            </div>
-
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-7 hover:border-emerald-500/40 transition group">
-              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-5 text-emerald-400 font-bold text-lg group-hover:scale-110 transition">
-                ✓
-              </div>
-              <h3 className="font-bold text-lg mb-2">Steam Verified</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Login with Steam only. Real names, real ranks, no smurfs. Fair competition.
-              </p>
             </div>
           </div>
+          <div className="flex gap-3">
+            <Link href="/matches/create" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
+              + Create Match
+            </Link>
+            <Link href="/matches" className="px-5 py-2.5 rounded-xl border border-[#1c1c28] text-sm hover:border-[#FF5C00]/50 transition">
+              Find Match
+            </Link>
+          </div>
         </div>
-      </section>
 
-      {/* How it works */}
-      <section className="py-20 border-t border-[#1c1c28]">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-2xl font-bold mb-12">How it works</h2>
-          <div className="grid sm:grid-cols-4 gap-6 text-sm">
-            <div>
-              <div className="text-3xl font-black text-[#FF5C00] mb-3">1</div>
-              <div className="font-medium mb-1">Create or Accept</div>
-              <div className="text-gray-400">Post a match or take someone else’s</div>
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Left column - Matches */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Open Matches */}
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-lg">Open Matches</h2>
+                <Link href="/matches" className="text-xs text-[#FF5C00] hover:underline">View all →</Link>
+              </div>
+              <div className="space-y-3">
+                {openMatches && openMatches.length > 0 ? (
+                  openMatches.map((m: any) => (
+                    <Link
+                      key={m.id}
+                      href={`/matches/${m.id}`}
+                      className="flex items-center justify-between p-3 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] transition"
+                    >
+                      <div className="flex items-center gap-3">
+                        {m.creator?.avatar_url && (
+                          <img src={m.creator.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                        )}
+                        <div>
+                          <div className="text-sm font-medium">{m.creator?.steam_name}</div>
+                          <div className="text-xs text-gray-500">{m.format} • {m.best_of} • {m.region}</div>
+                        </div>
+                      </div>
+                      <span className="text-xs text-gray-500">{timeAgo(m.created_at)}</span>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500 py-6 text-center">No open matches right now</div>
+                )}
+              </div>
             </div>
-            <div>
-              <div className="text-3xl font-black text-[#FF5C00] mb-3">2</div>
-              <div className="font-medium mb-1">Play in Deadlock</div>
-              <div className="text-gray-400">Host posts the private match code</div>
+
+            {/* Your Matches */}
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold text-lg">Your Matches</h2>
+                <Link href="/matches?tab=yours" className="text-xs text-[#FF5C00] hover:underline">View all →</Link>
+              </div>
+              <div className="space-y-3">
+                {yourMatches && yourMatches.length > 0 ? (
+                  yourMatches.map((m: any) => (
+                    <Link
+                      key={m.id}
+                      href={`/matches/${m.id}`}
+                      className="flex items-center justify-between p-3 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] transition"
+                    >
+                      <div>
+                        <div className="text-sm font-medium">
+                          {m.creator?.steam_name} vs {m.opponent?.steam_name || "Waiting..."}
+                        </div>
+                        <div className="text-xs text-gray-500">{m.format} • {m.best_of}</div>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        m.status === "open" ? "bg-yellow-500/15 text-yellow-400" :
+                        m.status === "accepted" ? "bg-emerald-500/15 text-emerald-400" :
+                        m.status === "completed" ? "bg-blue-500/15 text-blue-400" :
+                        m.status === "disputed" ? "bg-red-500/15 text-red-400" :
+                        "bg-gray-500/15 text-gray-400"
+                      }`}>
+                        {m.status}
+                      </span>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500 py-6 text-center">No matches yet</div>
+                )}
+              </div>
             </div>
-            <div>
-              <div className="text-3xl font-black text-[#FF5C00] mb-3">3</div>
-              <div className="font-medium mb-1">Report Result</div>
-              <div className="text-gray-400">Both players confirm the winner</div>
+          </div>
+
+          {/* Right column */}
+          <div className="space-y-6">
+            {/* Quests */}
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold">Daily Quests</h2>
+                <Link href="/quests" className="text-xs text-[#FF5C00] hover:underline">All →</Link>
+              </div>
+              <div className="space-y-3">
+                {quests && quests.length > 0 ? (
+                  quests.slice(0, 3).map((q: any) => (
+                    <div key={q.id}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-gray-400">{q.quest_key.replace("_", " ")}</span>
+                        <span>{q.progress}/{q.target}</span>
+                      </div>
+                      <div className="h-1.5 bg-[#1c1c28] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#FF5C00] rounded-full"
+                          style={{ width: `${Math.min(100, (q.progress / q.target) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500">No quests yet — visit Quests page</div>
+                )}
+              </div>
             </div>
-            <div>
-              <div className="text-3xl font-black text-[#FF5C00] mb-3">4</div>
-              <div className="font-medium mb-1">Earn XP</div>
-              <div className="text-gray-400">Climb the exclusive Citadel ranks</div>
+
+            {/* Top Earners */}
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-bold">Top Earners</h2>
+                <Link href="/leaderboard" className="text-xs text-[#FF5C00] hover:underline">Full →</Link>
+              </div>
+              <div className="space-y-3">
+                {topEarners?.map((p: any, i: number) => (
+                  <Link key={p.id} href={`/players/${p.id}`} className="flex items-center gap-3 hover:opacity-80 transition">
+                    <span className={`w-5 text-xs font-bold ${
+                      i === 0 ? "text-yellow-400" : i === 1 ? "text-gray-300" : i === 2 ? "text-orange-400" : "text-gray-600"
+                    }`}>{i + 1}</span>
+                    {p.avatar_url && <img src={p.avatar_url} alt="" className="w-7 h-7 rounded-full" />}
+                    <span className="text-sm flex-1 truncate">{p.steam_name}</span>
+                    <span className="text-xs text-gray-500">{p.wins}W</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Links */}
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+              <h2 className="font-bold mb-3">Quick Links</h2>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <Link href="/players" className="p-2.5 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] text-center transition">Players</Link>
+                <Link href="/ranks" className="p-2.5 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] text-center transition">Ranks</Link>
+                <Link href="/tickets" className="p-2.5 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] text-center transition">Tickets</Link>
+                <Link href="/rules" className="p-2.5 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] text-center transition">Rules</Link>
+              </div>
             </div>
           </div>
         </div>
-      </section>
-
-      {/* CTA */}
-      <section className="py-24 border-t border-[#1c1c28] text-center">
-        <h2 className="text-3xl font-bold mb-4">Ready to enter the Citadel?</h2>
-        <p className="text-gray-400 mb-10 max-w-md mx-auto">
-          Join the competitive Deadlock community and start climbing today.
-        </p>
-        {profile ? (
-          <Link href="/matches" className="btn-primary px-10 py-4 rounded-xl inline-block font-semibold">
-            Find a Match
-          </Link>
-        ) : (
-          <a href="/api/steam/login" className="btn-primary px-10 py-4 rounded-xl inline-block font-semibold">
-            Login with Steam
-          </a>
-        )}
-      </section>
-
-      <footer className="border-t border-[#1c1c28] py-10 text-center text-sm text-gray-500">
-        © 2026 Citadel. Not affiliated with Valve Corporation.
-      </footer>
+      </main>
     </div>
   )
 }
