@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import { claimQuest } from "./actions"
+import Link from "next/link"
 
 const QUESTS = [
   { key: "win_1", title: "Win 1 Match", target: 1, reward: 25 },
