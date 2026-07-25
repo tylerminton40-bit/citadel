@@ -113,13 +113,12 @@ async function bumpQuest(userId: string, key: string, amount = 1) {
 }
 
 // Both players played a match
-if (winnerId) await bumpQuest(winnerId, "play_2")
-if (loserId) await bumpQuest(loserId, "play_2")
+if (newWinnerId) await bumpQuest(newWinnerId, "play_2")
+if (newLoserId) await bumpQuest(newLoserId, "play_2")
 
-// Winner progress
-if (winnerId) {
-  await bumpQuest(winnerId, "win_1")
-  await bumpQuest(winnerId, "win_2")
+if (newWinnerId) {
+  await bumpQuest(newWinnerId, "win_1")
+  await bumpQuest(newWinnerId, "win_2")
 }
 
   // Set new winner
