@@ -54,6 +54,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const isOpen = match.status === "open"
   const isAccepted = match.status === "accepted"
   const isCompleted = match.status === "completed"
+  const isPendingResult = isAccepted && (match.creator_report || match.opponent_report)
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
@@ -65,23 +66,20 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           <div className="text-sm text-gray-400">
             {match.format} • {match.best_of} • {match.region}
           </div>
- <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-  isOpen ? "bg-yellow-500/20 text-yellow-400" :
-  match.status === "disputed" ? "bg-red-500/20 text-red-400" :
-  isCompleted ? "bg-blue-500/20 text-blue-400" :
-  (match.creator_report || match.opponent_report) ? "bg-orange-500/20 text-orange-400" :
-  isAccepted ? "bg-emerald-500/20 text-emerald-400" :
-  "bg-gray-500/20 text-gray-400"
-}`}>
-  {isOpen ? "OPEN" :
-   match.status === "disputed" ? "DISPUTED" :
-   isCompleted ? "COMPLETED" :
-   (match.creator_report || match.opponent_report) ? "PENDING RESULT" :
-   isAccepted ? "ACCEPTED" :
-   match.status.toUpperCase()}
-</div>
-
-            {match.status.toUpperCase()}
+          <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+            isOpen ? "bg-yellow-500/20 text-yellow-400" :
+            match.status === "disputed" ? "bg-red-500/20 text-red-400" :
+            isCompleted ? "bg-blue-500/20 text-blue-400" :
+            isPendingResult ? "bg-orange-500/20 text-orange-400" :
+            isAccepted ? "bg-emerald-500/20 text-emerald-400" :
+            "bg-gray-500/20 text-gray-400"
+          }`}>
+            {isOpen ? "OPEN" :
+             match.status === "disputed" ? "DISPUTED" :
+             isCompleted ? "COMPLETED" :
+             isPendingResult ? "PENDING RESULT" :
+             isAccepted ? "ACCEPTED" :
+             match.status.toUpperCase()}
           </div>
         </div>
 
@@ -127,18 +125,18 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-{/* Instructions */}
-<div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 mb-6">
-  <h3 className="font-bold mb-3 text-[#FF5C00]">How to Play</h3>
-  <ol className="text-sm text-gray-400 space-y-2 list-decimal list-inside">
-    <li>Host creates a Private Match in Deadlock (Street Brawl for 1v1-4v4, Normal for 6v6)</li>
-    <li>Host posts the Private Match Code in the box below</li>
-    <li>Both players join using the code</li>
-    <li>Play the match (Best of {match.best_of})</li>
-    <li>Both players report the result on this page</li>
-    <li>XP is awarded when both reports match</li>
-  </ol>
-</div>
+        {/* Instructions */}
+        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 mb-6">
+          <h3 className="font-bold mb-3 text-[#FF5C00]">How to Play</h3>
+          <ol className="text-sm text-gray-400 space-y-2 list-decimal list-inside">
+            <li>Host creates a Private Match in Deadlock (Street Brawl for 1v1-4v4, Normal for 6v6)</li>
+            <li>Host posts the Private Match Code in the box below</li>
+            <li>Both players join using the code</li>
+            <li>Play the match (Best of {match.best_of})</li>
+            <li>Both players report the result on this page</li>
+            <li>XP is awarded when both reports match</li>
+          </ol>
+        </div>
 
         {/* Live Code + Chat */}
         <MatchLive
