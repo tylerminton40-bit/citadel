@@ -140,7 +140,29 @@ export default async function Home() {
                 <h2 className="font-bold text-lg">Your Matches</h2>
                 <Link href="/matches?tab=yours" className="text-xs text-[#FF5C00] hover:underline">View all →</Link>
               </div>
-			  
+              <div className="space-y-3">
+                {yourMatches && yourMatches.length > 0 ? (
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  yourMatches.map((m: any) => (
+                    <Link key={m.id} href={`/matches/${m.id}`} className="flex items-center justify-between p-3 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] transition">
+                      <div>
+                        <div className="text-sm font-medium">{m.creator?.steam_name} vs {m.opponent?.steam_name || "Waiting..."}</div>
+                        <div className="text-xs text-gray-500">{m.format} • {m.best_of}</div>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        m.status === "open" ? "bg-yellow-500/15 text-yellow-400" :
+                        m.status === "accepted" ? "bg-emerald-500/15 text-emerald-400" :
+                        m.status === "completed" ? "bg-blue-500/15 text-blue-400" :
+                        m.status === "disputed" ? "bg-red-500/15 text-red-400" :
+                        "bg-gray-500/15 text-gray-400"
+                      }`}>{m.status}</span>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="text-sm text-gray-500 py-6 text-center">No matches yet</div>
+                )}
+              </div>
+            </div>
 			  {/* Rank Progress */}
 <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6">
   <div className="flex items-center justify-between mb-4">
@@ -180,29 +202,6 @@ export default async function Home() {
     <div className="text-sm text-gray-400">Max rank reached.</div>
   )}
 </div>
-              <div className="space-y-3">
-                {yourMatches && yourMatches.length > 0 ? (
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  yourMatches.map((m: any) => (
-                    <Link key={m.id} href={`/matches/${m.id}`} className="flex items-center justify-between p-3 rounded-xl bg-[#08080d] hover:bg-[#0c0c14] transition">
-                      <div>
-                        <div className="text-sm font-medium">{m.creator?.steam_name} vs {m.opponent?.steam_name || "Waiting..."}</div>
-                        <div className="text-xs text-gray-500">{m.format} • {m.best_of}</div>
-                      </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                        m.status === "open" ? "bg-yellow-500/15 text-yellow-400" :
-                        m.status === "accepted" ? "bg-emerald-500/15 text-emerald-400" :
-                        m.status === "completed" ? "bg-blue-500/15 text-blue-400" :
-                        m.status === "disputed" ? "bg-red-500/15 text-red-400" :
-                        "bg-gray-500/15 text-gray-400"
-                      }`}>{m.status}</span>
-                    </Link>
-                  ))
-                ) : (
-                  <div className="text-sm text-gray-500 py-6 text-center">No matches yet</div>
-                )}
-              </div>
-            </div>
           </div>
 
           <div className="space-y-6">
