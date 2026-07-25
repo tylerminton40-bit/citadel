@@ -29,6 +29,22 @@ export async function resolveTicket(ticketId: string, formData: FormData) {
     })
     .eq("id", ticketId)
 
+  const { data: ticketInfo } = await supabase
+    .from("tickets")
+    .select("creator_id")
+    .eq("id", ticketId)
+    .single()
+
+  if (ticketInfo?.creator_id) {
+    await createNotification({
+      userId: ticketInfo.creator_id,
+      type: "ticket_resolved",
+      title: "Ticket Resolved",
+      message: response || "Your ticket has been resolved",
+      link: `/tickets/${ticketId}`,
+    })
+  }
+
   revalidatePath(`/admin/tickets/${ticketId}`)
   revalidatePath("/admin/tickets")
   redirect("/admin/tickets")
@@ -58,7 +74,7 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
   const newWinnerId = winner === "creator" ? match.creator_id : match.opponent_id
   const newLoserId = winner === "creator" ? match.opponent_id : match.creator_id
 
-  // If match was already completed, reverse the old XP + wins/losses
+  // Reverse old stats if already completed
   if (match.status === "completed" && match.winner_id) {
     const oldWinnerId = match.winner_id
     const oldLoserId = oldWinnerId === match.creator_id ? match.opponent_id : match.creator_id
@@ -82,27 +98,7 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
       completed_at: new Date().toISOString(),
     })
     .eq("id", matchId)
-	
-	// Get the ticket to find the creator
-const { data: ticketData } = await supabase
-  .from("tickets")
-  .select("creator_id")
-  .eq("id", ticketId)
-  .single()
 
-if (ticketData?.creator_id) {
-  await createNotification({
-    userId: ticketData.creator_id,
-    type: "ticket_resolved",
-    title: "Ticket Resolved",
-    message: response || "Your ticket has been resolved",
-    link: `/tickets/${ticketId}`
-  })
-}
-
-
-
-  // Give new XP + wins/losses
   if (newWinnerId) {
     await supabase.rpc("increment_xp", { profile_id: newWinnerId, amount: 30 })
     await supabase.rpc("increment_wins", { profile_id: newWinnerId })
@@ -112,34 +108,31 @@ if (ticketData?.creator_id) {
     await supabase.rpc("increment_losses", { profile_id: newLoserId })
   }
 
-  // Resolve ticket
+  // Resolve ticket + notify
   await supabase
     .from("tickets")
     .update({
       status: "resolved",
-      admin_response: `Admin set the winner. Match and stats updated.`,
+      admin_response: "Admin set the winner. Match and stats updated.",
       resolved_at: new Date().toISOString(),
     })
     .eq("id", ticketId)
-	
-	// Get the ticket to find the creator
-const { data: ticketData } = await supabase
-  .from("tickets")
-  .select("creator_id")
-  .eq("id", ticketId)
-  .single()
 
-if (ticketData?.creator_id) {
-  await createNotification({
-    userId: ticketData.creator_id,
-    type: "ticket_resolved",
-    title: "Ticket Resolved",
-    message: response || "Your ticket has been resolved",
-    link: `/tickets/${ticketId}`
-  })
-}
+  const { data: ticketInfo } = await supabase
+    .from("tickets")
+    .select("creator_id")
+    .eq("id", ticketId)
+    .single()
 
-
+  if (ticketInfo?.creator_id) {
+    await createNotification({
+      userId: ticketInfo.creator_id,
+      type: "ticket_resolved",
+      title: "Ticket Resolved",
+      message: "Admin set the winner. Match and stats updated.",
+      link: `/tickets/${ticketId}`,
+    })
+  }
 
   revalidatePath(`/admin/tickets/${ticketId}`)
   revalidatePath("/admin/tickets")
