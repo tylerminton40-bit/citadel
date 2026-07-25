@@ -29,15 +29,6 @@ export default function MatchLive({
   const [newMessage, setNewMessage] = useState("")
   const [codeInput, setCodeInput] = useState("")
   const bottomRef = useRef<HTMLDivElement>(null)
-  const prevMessageCount = useRef(initialMessages.length)
-
-  // Only scroll when a NEW message actually arrives
-  useEffect(() => {
-    if (messages.length > prevMessageCount.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-    }
-    prevMessageCount.current = messages.length
-  }, [messages])
 
   // Poll every 2 seconds
   useEffect(() => {
@@ -132,7 +123,6 @@ export default function MatchLive({
           ) : (
             <div className="text-gray-500 text-sm text-center py-8">No messages yet</div>
           )}
-          <div ref={bottomRef} />
         </div>
 
         {isParticipant && (
