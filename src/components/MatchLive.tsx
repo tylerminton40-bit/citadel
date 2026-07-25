@@ -86,14 +86,26 @@ export default function MatchLive({
     setCodeInput("")
   }
 
-  async function sendChat() {
-    if (!newMessage.trim()) return
-    await fetch("/api/match-chat", {
-      method: "POST",
-      body: JSON.stringify({ matchId, message: newMessage }),
-    })
-    setNewMessage("")
+async function sendChat() {
+  if (!newMessage.trim()) return
+
+  const tempId = crypto.randomUUID()
+  const tempMessage = {
+    id: tempId,
+    message: newMessage,
+    sender: { steam_name: "You" },
+    created_at: new Date().toISOString(),
   }
+
+  // Show instantly
+  setMessages((prev) => [...prev, tempMessage])
+  setNewMessage("")
+
+  await fetch("/api/match-chat", {
+    method: "POST",
+    body: JSON.stringify({ matchId, message: tempMessage.message }),
+  })
+}
 
   return (
     <div className="space-y-6">
