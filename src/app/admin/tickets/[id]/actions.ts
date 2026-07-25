@@ -88,6 +88,39 @@ export async function forceWinner(matchId: string, ticketId: string, formData: F
       await supabase.rpc("decrement_losses", { profile_id: oldLoserId })
     }
   }
+  // Update daily quests for both players
+const today = new Date().toISOString().slice(0, 10)
+
+async function bumpQuest(userId: string, key: string, amount = 1) {
+  const { data: quest } = await supabase
+    .from("daily_quests")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("quest_key", key)
+    .eq("quest_date", today)
+    .single()
+
+  if (quest && !quest.claimed) {
+    const newProgress = Math.min(quest.progress + amount, quest.target)
+    await supabase
+      .from("daily_quests")
+      .update({
+        progress: newProgress,
+        completed: newProgress >= quest.target,
+      })
+      .eq("id", quest.id)
+  }
+}
+
+// Both players played a match
+if (winnerId) await bumpQuest(winnerId, "play_2")
+if (loserId) await bumpQuest(loserId, "play_2")
+
+// Winner progress
+if (winnerId) {
+  await bumpQuest(winnerId, "win_1")
+  await bumpQuest(winnerId, "win_2")
+}
 
   // Set new winner
   await supabase
