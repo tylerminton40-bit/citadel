@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
-import { resolveTicket } from "./actions"
+import { resolveTicket, forceWinner } from "./actions"
 
 const ADMIN_STEAM_ID = "76561199480856629"
 
@@ -45,6 +45,21 @@ export default async function AdminTicketDetailPage({
     .select("*")
     .eq("ticket_id", id)
 
+  // Get the related match if it exists
+  let match = null
+  if (ticket.match_id) {
+    const { data } = await supabase
+      .from("matches")
+      .select(`
+        *,
+        creator:profiles!matches_creator_id_fkey(id, steam_name, avatar_url),
+        opponent:profiles!matches_opponent_id_fkey(id, steam_name, avatar_url)
+      `)
+      .eq("id", ticket.match_id)
+      .single()
+    match = data
+  }
+
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
@@ -54,6 +69,7 @@ export default async function AdminTicketDetailPage({
           ← Back to all tickets
         </Link>
 
+        {/* Ticket Info */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">{ticket.subject}</h1>
@@ -76,15 +92,10 @@ export default async function AdminTicketDetailPage({
             </div>
           )}
 
-          {/* Proofs */}
           <h3 className="font-bold mb-3">Proof</h3>
           <div className="space-y-4">
             {proofs && proofs.length > 0 ? (
-              proofs.map((proof: {
-  id: string
-  file_url: string
-  file_type: string
-}) => (
+              proofs.map((proof: { id: string; file_url: string; file_type: string }) => (
                 <div key={proof.id} className="bg-[#08080d] rounded-xl p-4">
                   {proof.file_type === "video" ? (
                     <video src={proof.file_url} controls className="w-full rounded-lg" />
@@ -101,6 +112,42 @@ export default async function AdminTicketDetailPage({
             )}
           </div>
         </div>
+
+        {/* Related Match + Force Winner */}
+        {match && (
+          <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 mb-6">
+            <h3 className="font-bold mb-4 text-[#FF5C00]">Related Match</h3>
+            
+            <div className="flex items-center justify-between mb-4 text-sm">
+              <div>
+                <div className="font-medium">{match.creator?.steam_name} vs {match.opponent?.steam_name}</div>
+                <div className="text-gray-400">{match.format} • {match.best_of} • {match.status}</div>
+              </div>
+              <Link href={`/matches/${match.id}`} className="text-[#FF5C00] text-sm">
+                View Match →
+              </Link>
+            </div>
+
+            {match.status !== "completed" && (
+              <form action={forceWinner.bind(null, match.id, id)} className="flex gap-3 items-center mt-4">
+                <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm">
+                  <option value="">Choose winner...</option>
+                  <option value="creator">{match.creator?.steam_name} wins</option>
+                  <option value="opponent">{match.opponent?.steam_name} wins</option>
+                </select>
+                <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
+                  Force Winner + Resolve
+                </button>
+              </form>
+            )}
+
+            {match.status === "completed" && (
+              <div className="text-sm text-emerald-400">
+                Match already completed
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Admin Response */}
         {ticket.status !== "resolved" && (

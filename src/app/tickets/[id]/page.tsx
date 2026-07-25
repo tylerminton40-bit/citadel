@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
+import { closeTicket } from "../actions"
 
 export default async function TicketDetailPage({
   params,
@@ -95,6 +96,17 @@ export default async function TicketDetailPage({
               <p className="text-gray-500 text-sm">No proof</p>
             )}
           </div>
+
+{ticket.status === "open" && (
+  <form action={async () => {
+    "use server"
+    await closeTicket(id)
+  }} className="mt-6">
+    <button type="submit" className="px-5 py-2.5 rounded-xl border border-red-500/40 text-red-400 text-sm hover:bg-red-500/10 transition">
+      Close Ticket
+    </button>
+  </form>
+)}
 
           {ticket.admin_response && (
             <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4">
