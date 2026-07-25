@@ -20,12 +20,12 @@ export async function GET(request: NextRequest) {
       .select("id")
       .eq("steam_id", steamId)
       .single()
-    profileId = profile?.id
+    profileId = profile?.id || null
   }
 
   let query = supabase
     .from("matches")
-    .select("*, creator:profiles!matches_creator_id_fkey(steam_name, avatar_url, xp), opponent:profiles!matches_opponent_id_fkey(steam_name, avatar_url)")
+    .select("*, creator:profiles!matches_creator_id_fkey(steam_name, avatar_url), opponent:profiles!matches_opponent_id_fkey(steam_name, avatar_url)")
     .order("created_at", { ascending: false })
     .limit(30)
 
@@ -37,5 +37,8 @@ export async function GET(request: NextRequest) {
 
   const { data: matches } = await query
 
-  return NextResponse.json({ matches: matches || [] })
+  return NextResponse.json({
+    matches: matches || [],
+    currentUserId: profileId,
+  })
 }

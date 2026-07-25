@@ -11,6 +11,9 @@ type Match = {
   status: string
   created_at: string
   best_of?: string
+  creator_id?: string
+  opponent_id?: string
+  winner_id?: string | null
   creator: {
     steam_name: string
     avatar_url: string | null
@@ -33,25 +36,31 @@ export default function MatchList({
   currentTab: string
 }) {
   const [matches, setMatches] = useState<Match[]>(initialMatches)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
-  // Keep local state in sync when tab changes
   useEffect(() => {
     setMatches(initialMatches)
   }, [initialMatches, currentTab])
 
-  // Quiet background refresh every 5 seconds
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/matches?tab=${currentTab}&t=${Date.now()}`)
         const data = await res.json()
-        if (data.matches) {
-          setMatches(data.matches)
-        }
+        if (data.matches) setMatches(data.matches)
+        if (data.currentUserId) setCurrentUserId(data.currentUserId)
       } catch (err) {
         console.error(err)
       }
     }, 5000)
+
+    // Also run once immediately
+    fetch(`/api/matches?tab=${currentTab}&t=${Date.now()}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.matches) setMatches(data.matches)
+        if (data.currentUserId) setCurrentUserId(data.currentUserId)
+      })
 
     return () => clearInterval(interval)
   }, [currentTab])
@@ -66,48 +75,63 @@ export default function MatchList({
 
   return (
     <div className="space-y-4">
-      {matches.map((match) => (
-        <Link
-          key={match.id}
-          href={`/matches/${match.id}`}
-          className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 flex items-center justify-between hover:border-[#FF5C00]/40 transition block"
-        >
-          <div className="flex items-center gap-4">
-            {match.creator?.avatar_url && (
-              <img
-                src={match.creator.avatar_url}
-                alt=""
-                className="w-12 h-12 rounded-full"
-              />
-            )}
-            <div>
-              <div className="font-medium">{match.creator?.steam_name || "Unknown"}</div>
-              <div className="text-sm text-gray-400">
-                {match.format} • {match.best_of || "Bo1"} • {match.region} • {match.ruleset}
+      {matches.map((match) => {
+        let resultLabel = match.status
+        let resultColor = "bg-gray-500/15 text-gray-400"
+
+        if (match.status === "open") {
+          resultLabel = "open"
+          resultColor = "bg-yellow-500/15 text-yellow-400"
+        } else if (match.status === "accepted") {
+          resultLabel = "accepted"
+          resultColor = "bg-emerald-500/15 text-emerald-400"
+        } else if (match.status === "disputed") {
+          resultLabel = "disputed"
+          resultColor = "bg-red-500/15 text-red-400"
+        } else if (match.status === "completed" && currentUserId && match.winner_id) {
+          if (match.winner_id === currentUserId) {
+            resultLabel = "WIN"
+            resultColor = "bg-emerald-500/20 text-emerald-400"
+          } else {
+            resultLabel = "LOSS"
+            resultColor = "bg-red-500/20 text-red-400"
+          }
+        } else if (match.status === "completed") {
+          resultLabel = "completed"
+          resultColor = "bg-blue-500/15 text-blue-400"
+        }
+
+        return (
+          <Link
+            key={match.id}
+            href={`/matches/${match.id}`}
+            className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 flex items-center justify-between hover:border-[#FF5C00]/40 transition block"
+          >
+            <div className="flex items-center gap-4">
+              {match.creator?.avatar_url && (
+                <img
+                  src={match.creator.avatar_url}
+                  alt=""
+                  className="w-12 h-12 rounded-full"
+                />
+              )}
+              <div>
+                <div className="font-medium">{match.creator?.steam_name || "Unknown"}</div>
+                <div className="text-sm text-gray-400">
+                  {match.format} • {match.best_of || "Bo1"} • {match.region} • {match.ruleset}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-4">
-            <span className="text-xs text-gray-500">{timeAgo(match.created_at)}</span>
-            <span
-              className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                match.status === "open"
-                  ? "bg-yellow-500/15 text-yellow-400"
-                  : match.status === "accepted"
-                  ? "bg-emerald-500/15 text-emerald-400"
-                  : match.status === "completed"
-                  ? "bg-blue-500/15 text-blue-400"
-                  : match.status === "disputed"
-                  ? "bg-red-500/15 text-red-400"
-                  : "bg-gray-500/15 text-gray-400"
-              }`}
-            >
-              {match.status}
-            </span>
-          </div>
-        </Link>
-      ))}
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-gray-500">{timeAgo(match.created_at)}</span>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${resultColor}`}>
+                {resultLabel}
+              </span>
+            </div>
+          </Link>
+        )
+      })}
     </div>
   )
 }

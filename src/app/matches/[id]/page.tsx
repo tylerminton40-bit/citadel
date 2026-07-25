@@ -92,6 +92,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               )}
               <div className="font-bold text-lg">{match.creator?.steam_name || "Unknown"}</div>
               <div className="text-sm text-gray-400 mt-1">Host</div>
+<div className="text-xs text-[#FF5C00] font-medium">Hidden King</div>
             </div>
 
             <div className="text-center">
@@ -110,6 +111,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               )}
               <div className="font-bold text-lg">{match.opponent?.steam_name || "Waiting..."}</div>
               <div className="text-sm text-gray-400 mt-1">Challenger</div>
+<div className="text-xs text-purple-400 font-medium">Archmother</div>
             </div>
           </div>
         </div>
