@@ -13,19 +13,19 @@ export default async function TicketsPage() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("steam_id", steamId)
-    .single()
+ const { data: profile } = await supabase
+  .from("profiles")
+  .select("id")
+  .eq("steam_id", steamId)
+  .single()
 
-if (!steamId) redirect("/login?next=/settings")
+if (!profile) redirect("/login?next=/tickets")
 
-  const { data: tickets } = await supabase
-    .from("tickets")
-    .select("*")
-    .eq("creator_id", profile.id)
-    .order("created_at", { ascending: false })
+const { data: tickets } = await supabase
+  .from("tickets")
+  .select("*")
+  .eq("creator_id", profile.id)
+  .order("created_at", { ascending: false })
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
