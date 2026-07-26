@@ -38,7 +38,7 @@ export default async function TeamsPage() {
 
   // Members for each team
   const teamIds = memberships?.map((m: { team_id: string }) => m.team_id) || []
-  let allMembers: Record<string, unknown[]> = {}
+  const allMembers: Record<string, unknown[]> = {}
   if (teamIds.length > 0) {
     const { data: members } = await supabase
       .from("team_members")
