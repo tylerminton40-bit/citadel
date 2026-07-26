@@ -52,6 +52,7 @@ export async function acceptMatch(matchId: string) {
 
   if (!profile) redirect("/")
 
+  // Already in a match?
   const { data: existing } = await supabase
     .from("matches")
     .select("id")
@@ -72,10 +73,33 @@ export async function acceptMatch(matchId: string) {
 
   if (!match) redirect("/matches")
 
+  const needsTeam = ["2v2", "3v3", "4v4", "6v6"].includes(match.format)
+  const sizeMap: Record<string, number> = { "2v2": 2, "3v3": 3, "4v4": 4, "6v6": 6 }
+  let opponentTeamId = null
+
+  if (needsTeam) {
+    const neededSize = sizeMap[match.format]
+
+    const { data: membership } = await supabase
+      .from("team_members")
+      .select("team_id, team:teams(id, size)")
+      .eq("profile_id", profile.id)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const valid = membership?.find((m: any) => m.team?.size === neededSize)
+
+    if (!valid) {
+      redirect(`/matches/${matchId}?error=need_team`)
+    }
+
+    opponentTeamId = valid.team_id
+  }
+
   await supabase
     .from("matches")
     .update({
       opponent_id: profile.id,
+      opponent_team_id: opponentTeamId,
       status: "accepted",
       accepted_at: new Date().toISOString(),
       host_id: match.creator_id,
@@ -201,7 +225,6 @@ export async function reportResult(matchId: string, formData: FormData) {
 
   if (!updated) return
 
-  // Notify the other player
   const otherPlayerId = isCreator ? updated.opponent_id : updated.creator_id
   if (otherPlayerId) {
     await createNotification({
@@ -216,7 +239,6 @@ export async function reportResult(matchId: string, formData: FormData) {
   // Both reported
   if (updated.creator_report && updated.opponent_report) {
     if (updated.creator_report === updated.opponent_report) {
-      // Agree → complete
       const winnerId =
         updated.creator_report === "creator" ? updated.creator_id : updated.opponent_id
       const loserId =
@@ -231,7 +253,7 @@ export async function reportResult(matchId: string, formData: FormData) {
         })
         .eq("id", matchId)
 
-      // XP: +30 win, -20 loss
+      // Player XP
       if (winnerId) {
         await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
         await supabase.rpc("increment_wins", { profile_id: winnerId })
@@ -241,9 +263,31 @@ export async function reportResult(matchId: string, formData: FormData) {
         await supabase.rpc("increment_losses", { profile_id: loserId })
       }
 
+      // Team W/L (for 2v2–6v6)
+      const winnerTeamId =
+        updated.creator_report === "creator"
+          ? updated.creator_team_id
+          : updated.opponent_team_id
+      const loserTeamId =
+        updated.creator_report === "creator"
+          ? updated.opponent_team_id
+          : updated.creator_team_id
+
+      if (winnerTeamId) {
+        const { data: wt } = await supabase.from("teams").select("wins").eq("id", winnerTeamId).single()
+        if (wt) {
+          await supabase.from("teams").update({ wins: (wt.wins || 0) + 1 }).eq("id", winnerTeamId)
+        }
+      }
+      if (loserTeamId) {
+        const { data: lt } = await supabase.from("teams").select("losses").eq("id", loserTeamId).single()
+        if (lt) {
+          await supabase.from("teams").update({ losses: (lt.losses || 0) + 1 }).eq("id", loserTeamId)
+        }
+      }
+
       // Daily quests
       const today = new Date().toISOString().slice(0, 10)
-
       async function bumpQuest(userId: string, key: string) {
         const { data: quest } = await supabase
           .from("daily_quests")
@@ -274,7 +318,6 @@ export async function reportResult(matchId: string, formData: FormData) {
         await bumpQuest(loserId, "play_2")
       }
     } else {
-      // Disagree → disputed
       await supabase
         .from("matches")
         .update({ status: "disputed" })
@@ -285,4 +328,5 @@ export async function reportResult(matchId: string, formData: FormData) {
   revalidatePath(`/matches/${matchId}`)
   revalidatePath("/profile")
   revalidatePath("/quests")
+  revalidatePath("/teams")
 }
