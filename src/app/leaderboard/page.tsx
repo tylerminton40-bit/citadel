@@ -1,6 +1,4 @@
-import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
-import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
 import { getRank } from "@/lib/ranks"
@@ -13,48 +11,46 @@ export default async function LeaderboardPage({
   const { tab } = await searchParams
   const currentTab = tab || "lifetime"
 
-  const cookieStore = await cookies()
-  const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
-
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // Lifetime = highest XP
-  // Monthly = we'll use wins for now as a simple monthly proxy
-  // (true monthly needs match completed_at filtering later)
+  const { data } = await supabase
+    .from("profiles")
+    .select("*")
+    .limit(200)
 
-  let players
-  if (currentTab === "monthly") {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("wins", { ascending: false })
-      .limit(50)
-    players = data
-  } else {
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("xp", { ascending: false })
-      .limit(50)
-    players = data
-  }
+  const players = (data || [])
+    .map((p) => ({
+      ...p,
+      net: (p.wins || 0) - (p.losses || 0),
+    }))
+    .sort((a, b) => {
+      if (currentTab === "monthly") {
+        // net wins, then total wins as tiebreaker
+        if (b.net !== a.net) return b.net - a.net
+        return (b.wins || 0) - (a.wins || 0)
+      }
+      // lifetime: XP first, then net
+      if ((b.xp || 0) !== (a.xp || 0)) return (b.xp || 0) - (a.xp || 0)
+      return b.net - a.net
+    })
+    .slice(0, 50)
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-12">
-	  <Link href="/" className="text-sm text-gray-400 hover:text-white mb-6 inline-block">
-    ← Back to Hub
-  </Link>
+        <Link href="/" className="text-sm text-gray-400 hover:text-white mb-6 inline-block">
+          ← Back to Hub
+        </Link>
         <h1 className="text-3xl font-bold mb-2">Leaderboard</h1>
-        <p className="text-gray-400 text-sm mb-8">Top Citadel competitors</p>
+        <p className="text-gray-400 text-sm mb-8">
+          {currentTab === "monthly" ? "Sorted by wins − losses" : "Sorted by XP"}
+        </p>
 
-        {/* Tabs */}
         <div className="flex gap-2 mb-8">
           <Link
             href="/leaderboard?tab=lifetime"
@@ -74,12 +70,12 @@ export default async function LeaderboardPage({
                 : "bg-[#111118] text-gray-400 hover:text-white"
             }`}
           >
-            Monthly
+            Record
           </Link>
         </div>
 
         <div className="space-y-2">
-          {players && players.length > 0 ? (
+          {players.length > 0 ? (
             players.map((player, index) => {
               const rank = getRank(player.xp || 0)
               return (
@@ -101,17 +97,21 @@ export default async function LeaderboardPage({
                     <img src={player.avatar_url} alt="" className="w-10 h-10 rounded-full" />
                   )}
 
-                  <div className="flex-1">
-                    <div className="font-medium">{player.steam_name}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{player.steam_name}</div>
                     <div className="text-xs text-gray-400">
                       {player.wins}W / {player.losses}L
+                      <span className="text-gray-600"> · </span>
+                      <span className={player.net >= 0 ? "text-emerald-400" : "text-red-400"}>
+                        {player.net >= 0 ? "+" : ""}{player.net}
+                      </span>
                     </div>
                   </div>
 
                   <div className="text-right">
                     <div className={`text-sm font-medium ${rank.color}`}>{rank.name}</div>
                     <div className="text-xs text-gray-400">
-                      {currentTab === "monthly" ? `${player.wins} wins` : `${player.xp} XP`}
+                      {currentTab === "monthly" ? `${player.net >= 0 ? "+" : ""}${player.net} net` : `${player.xp} XP`}
                     </div>
                   </div>
                 </Link>

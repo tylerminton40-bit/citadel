@@ -8,8 +8,6 @@ export default async function ProfilePage() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
 
-  if (!steamId) redirect("/")
-
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!

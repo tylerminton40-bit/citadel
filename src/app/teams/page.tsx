@@ -8,7 +8,6 @@ import { acceptInvite, declineInvite, leaveTeam, kickMember } from "./actions"
 export default async function TeamsPage() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

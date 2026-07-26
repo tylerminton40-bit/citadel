@@ -7,7 +7,6 @@ import Link from "next/link"
 export default async function TicketsPage() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

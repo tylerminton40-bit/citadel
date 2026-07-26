@@ -14,7 +14,8 @@ const QUESTS = [
 export default async function QuestsPage() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
+
+  if (!steamId) redirect("/login?next=/quests")
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,11 +28,11 @@ export default async function QuestsPage() {
     .eq("steam_id", steamId)
     .single()
 
-  if (!profile) redirect("/")
+  if (!profile) redirect("/login?next=/quests")
 
   const today = new Date().toISOString().slice(0, 10)
 
-  // Ensure today's quests exist
+  // Create today's quests for this player if missing
   for (const q of QUESTS) {
     await supabase.from("daily_quests").upsert(
       {
@@ -39,6 +40,9 @@ export default async function QuestsPage() {
         quest_key: q.key,
         target: q.target,
         quest_date: today,
+        progress: 0,
+        completed: false,
+        claimed: false,
       },
       { onConflict: "user_id,quest_key,quest_date" }
     )
@@ -55,9 +59,9 @@ export default async function QuestsPage() {
       <Navbar />
 
       <main className="max-w-2xl mx-auto px-4 py-12">
-	  <Link href="/" className="text-sm text-gray-400 hover:text-white mb-6 inline-block">
-    ← Back to Hub
-  </Link>
+        <Link href="/" className="text-sm text-gray-400 hover:text-white mb-6 inline-block">
+          ← Back to Hub
+        </Link>
         <h1 className="text-3xl font-bold mb-2">Daily Quests</h1>
         <p className="text-gray-400 text-sm mb-10">
           Complete quests for bonus XP. Resets every day.

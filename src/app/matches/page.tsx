@@ -15,7 +15,6 @@ export default async function MatchesPage({
 
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
