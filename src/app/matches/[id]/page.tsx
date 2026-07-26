@@ -232,12 +232,13 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Instructions */}
+               {/* Instructions */}
         {showNormalSteps ? (
           <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 space-y-5">
             <div>
               <h3 className="font-bold mb-2 text-[#FF5C00] text-sm sm:text-base">Rules</h3>
               <ul className="text-xs sm:text-sm text-gray-400 space-y-1 list-disc list-inside">
+                <li>One-lane map</li>
                 <li>No Urn — decays instantly if picked up</li>
                 <li>No Rift — never spawns</li>
               </ul>
@@ -269,44 +270,41 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
                 <div className="bg-[#08080d] rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="bg-[#08080d] rounded-xl p-4">
-  <div className="flex items-center justify-between mb-2">
-    <span className="text-xs font-bold text-gray-300">Step 2 — Pause + setup</span>
-    <CopyButton text="sv_cheats 1; citadel_pause; status; citadel_active_lane 4" />
-  </div>
-  <code className="text-xs text-[#FF5C00] break-all">
-    sv_cheats 1; citadel_pause; status; citadel_active_lane 4
-  </code>
-  <p className="text-[11px] text-gray-500 mt-2">This pauses the game so your opponent can join.</p>
-</div>
+                    <span className="text-xs font-bold text-gray-300">Step 2 — Pause + setup</span>
+                    <CopyButton text="sv_cheats 1; citadel_pause; status; citadel_active_lane 4" />
+                  </div>
+                  <code className="text-xs text-[#FF5C00] break-all">
+                    sv_cheats 1; citadel_pause; status; citadel_active_lane 4
+                  </code>
+                  <p className="text-[11px] text-gray-500 mt-2">This pauses the game so your opponent can join.</p>
+                </div>
 
                 <div className="bg-[#08080d] rounded-xl p-4">
-  <div className="text-xs font-bold text-gray-300 mb-2">Step 3 — Post your connect code</div>
-  <p className="text-[11px] text-gray-500 mb-3">
-    From the <code className="text-gray-400">status</code> output, copy your ID including the brackets.
-    <strong className="text-white"> The whole thing must be copied</strong>, like:
-  </p>
-  <code className="block text-xs text-[#FF5C00] font-mono bg-[#050508] rounded-lg px-3 py-2 mb-3">
-    [A:0:1234567890:12345]
-  </code>
-  <img
-    src="/console-steamid-example.png"
-    alt="Console steamid example"
-    className="w-full rounded-lg border border-[#1c1c28] mb-2"
-  />
-  <p className="text-[11px] text-gray-500">
-    Paste that as the Match Code below. Opponent will use it to connect.
-  </p>
-</div>
+                  <div className="text-xs font-bold text-gray-300 mb-2">Step 3 — Post your connect code</div>
+                  <p className="text-[11px] text-gray-500 mb-3">
+                    From the <code className="text-gray-400">status</code> output, copy your ID including the brackets.
+                    <strong className="text-white"> The whole thing must be copied</strong>, like:
+                  </p>
+                  <code className="block text-xs text-[#FF5C00] font-mono bg-[#050508] rounded-lg px-3 py-2 mb-3">
+                    [A:0:1234567890:12345]
+                  </code>
+                  <img
+                    src="/console-steamid-example.png"
+                    alt="Console steamid example"
+                    className="w-full rounded-lg border border-[#1c1c28] mb-2"
+                  />
+                  <p className="text-[11px] text-gray-500">
+                    Paste that as the Match Code below. Opponent will use it to connect.
+                  </p>
+                </div>
 
                 <div className="bg-[#08080d] rounded-xl p-4">
-                  <div className="bg-[#08080d] rounded-xl p-4">
-  <div className="text-xs font-bold text-gray-300 mb-1">Step 4 — Unpause</div>
-  <p className="text-[11px] text-gray-500">
-    You can tell your opponent is in when an <strong className="text-white">empty character portrait</strong> appears on the other team.
-    Then press <strong className="text-white">P</strong> to unpause and start the match.
-  </p>
-</div>
+                  <div className="text-xs font-bold text-gray-300 mb-1">Step 4 — Unpause</div>
+                  <p className="text-[11px] text-gray-500">
+                    You can tell your opponent is in when an <strong className="text-white">empty character portrait</strong> appears on the other team.
+                    Then press <strong className="text-white">P</strong> to unpause and start the match.
+                  </p>
+                </div>
               </div>
             )}
           </div>
