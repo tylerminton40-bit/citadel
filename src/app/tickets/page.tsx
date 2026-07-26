@@ -19,7 +19,7 @@ export default async function TicketsPage() {
     .eq("steam_id", steamId)
     .single()
 
-  if (!profile) redirect("/")
+if (!steamId) redirect("/login?next=/settings")
 
   const { data: tickets } = await supabase
     .from("tickets")

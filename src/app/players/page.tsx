@@ -2,6 +2,10 @@ import Navbar from "@/components/Navbar"
 import Link from "next/link"
 import PlayerSearch from "@/components/PlayerSearchBar"
 
+const cookieStore = await cookies()
+const steamId = cookieStore.get("citadel_steam_id")?.value
+if (!steamId) redirect("/login?next=/THE-PATH")
+
 export default function PlayersPage() {
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
