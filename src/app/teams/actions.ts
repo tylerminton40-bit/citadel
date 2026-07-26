@@ -36,20 +36,20 @@ export async function createTeam(formData: FormData) {
     redirect("/teams/create?error=invalid")
   }
 
-  // Already on a team?
+  // Already on a team of this size?
   const { data: existing } = await supabase
     .from("team_members")
-    .select("id")
+    .select("id, team:teams(size)")
     .eq("profile_id", profile.id)
-    .limit(1)
 
-  if (existing && existing.length > 0) {
-    redirect("/teams?error=already_on_team")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (existing?.some((m: any) => m.team?.size === size)) {
+    redirect("/teams/create?error=already_on_size")
   }
 
   const { data: team, error } = await supabase
     .from("teams")
-    .insert({ name, tag, size, owner_id: profile.id })
+    .insert({ name, tag, size, owner_id: profile.id, wins: 0, losses: 0 })
     .select()
     .single()
 
@@ -73,7 +73,6 @@ export async function invitePlayer(teamId: string, formData: FormData) {
 
   if (!steamName) redirect(`/teams/${teamId}/invite?error=name`)
 
-  // Must be owner
   const { data: team } = await supabase
     .from("teams")
     .select("*")
@@ -83,7 +82,6 @@ export async function invitePlayer(teamId: string, formData: FormData) {
 
   if (!team) redirect("/teams")
 
-  // Find invitee by steam name
   const { data: invitee } = await supabase
     .from("profiles")
     .select("id")
@@ -94,15 +92,15 @@ export async function invitePlayer(teamId: string, formData: FormData) {
     redirect(`/teams/${teamId}/invite?error=not_found`)
   }
 
-  // Already on a team?
-  const { data: onTeam } = await supabase
+  // Already on a team of this size?
+  const { data: theirTeams } = await supabase
     .from("team_members")
-    .select("id")
+    .select("id, team:teams(size)")
     .eq("profile_id", invitee.id)
-    .limit(1)
 
-  if (onTeam && onTeam.length > 0) {
-    redirect(`/teams/${teamId}/invite?error=already_on_team`)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (theirTeams?.some((m: any) => m.team?.size === team.size)) {
+    redirect(`/teams/${teamId}/invite?error=already_on_size`)
   }
 
   await supabase.from("team_invites").upsert({
@@ -119,17 +117,6 @@ export async function invitePlayer(teamId: string, formData: FormData) {
 export async function acceptInvite(inviteId: string) {
   const { supabase, profile } = await getProfile()
 
-  // Already on a team?
-  const { data: existing } = await supabase
-    .from("team_members")
-    .select("id")
-    .eq("profile_id", profile.id)
-    .limit(1)
-
-  if (existing && existing.length > 0) {
-    redirect("/teams?error=already_on_team")
-  }
-
   const { data: invite } = await supabase
     .from("team_invites")
     .select("*, team:teams(*)")
@@ -140,7 +127,17 @@ export async function acceptInvite(inviteId: string) {
 
   if (!invite) redirect("/teams")
 
-  // Check team not full
+  // Already on a team of this size?
+  const { data: existing } = await supabase
+    .from("team_members")
+    .select("id, team:teams(size)")
+    .eq("profile_id", profile.id)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (existing?.some((m: any) => m.team?.size === invite.team.size)) {
+    redirect("/teams?error=already_on_size")
+  }
+
   const { count } = await supabase
     .from("team_members")
     .select("*", { count: "exact", head: true })
@@ -191,7 +188,6 @@ export async function leaveTeam(teamId: string) {
   if (!membership) redirect("/teams")
 
   if (membership.role === "owner") {
-    // Disband: delete team (cascades members + invites)
     await supabase.from("teams").delete().eq("id", teamId)
   } else {
     await supabase

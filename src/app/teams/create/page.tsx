@@ -22,24 +22,13 @@ export default async function CreateTeamPage() {
 
   if (!profile) redirect("/")
 
-  // Already on a team?
-  const { data: existing } = await supabase
-    .from("team_members")
-    .select("id")
-    .eq("profile_id", profile.id)
-    .limit(1)
-
-  if (existing && existing.length > 0) {
-    redirect("/teams?error=already_on_team")
-  }
-
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
 
       <main className="max-w-xl mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold mb-2">Create Team</h1>
-        <p className="text-gray-400 text-sm mb-8">You can only be on one team at a time.</p>
+        <p className="text-gray-400 text-sm mb-8">One team per mode (you can have a 2v2 and a 3v3, etc).</p>
 
         <form action={createTeam} className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 space-y-6">
           <div>
