@@ -19,6 +19,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const { id } = await params
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
+  if (!steamId) redirect("/login?next=/matches")
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -79,12 +80,38 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
   const isCreator = profile?.id === match.creator_id
   const isOpponent = profile?.id === match.opponent_id
-  const isParticipant = isCreator || isOpponent
+  const isCaptain = isCreator || isOpponent
+
+  let isOnCreatorTeam = false
+  let isOnOpponentTeam = false
+
+  if (profile?.id && match.creator_team_id) {
+    const { data } = await supabase
+      .from("team_members")
+      .select("id")
+      .eq("team_id", match.creator_team_id)
+      .eq("profile_id", profile.id)
+      .maybeSingle()
+    isOnCreatorTeam = !!data
+  }
+
+  if (profile?.id && match.opponent_team_id) {
+    const { data } = await supabase
+      .from("team_members")
+      .select("id")
+      .eq("team_id", match.opponent_team_id)
+      .eq("profile_id", profile.id)
+      .maybeSingle()
+    isOnOpponentTeam = !!data
+  }
+
+  const isParticipant =
+    isCaptain || isOnCreatorTeam || isOnOpponentTeam
+
   const isOpen = match.status === "open"
   const isAccepted = match.status === "accepted"
   const isCompleted = match.status === "completed"
   const isPendingResult = isAccepted && (match.creator_report || match.opponent_report)
-
   const isNormal = match.ruleset?.startsWith("Normal")
   const isSmallFormat = ["1v1", "2v2", "3v3"].includes(match.format)
   const showNormalSteps = isNormal && isSmallFormat && isAccepted
@@ -94,7 +121,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-12">
-        {/* Status */}
         <div className="flex items-center justify-between mb-6 sm:mb-8 gap-2">
           <div className="text-xs sm:text-sm text-gray-400 truncate">
             {match.format} • {match.best_of} • {match.region} • {match.ruleset}
@@ -119,7 +145,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         {/* Head to Head */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl sm:rounded-3xl p-5 sm:p-8 mb-6 sm:mb-8">
           <div className="grid grid-cols-3 items-start gap-2 sm:gap-6">
-            {/* Host side */}
             <div className="text-center">
               {match.creator_team ? (
                 <>
@@ -160,7 +185,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               )}
             </div>
 
-            {/* VS */}
             <div className="text-center pt-4 sm:pt-8">
               <div className="text-2xl sm:text-4xl font-black text-[#FF5C00] mb-1 sm:mb-2">VS</div>
               <div className="text-[10px] sm:text-sm text-gray-400">{match.format}</div>
@@ -168,7 +192,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               <div className="text-[10px] sm:text-xs text-gray-500">{match.ruleset}</div>
             </div>
 
-            {/* Challenger side */}
             <div className="text-center">
               {match.opponent_team ? (
                 <>
@@ -231,7 +254,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-               {/* Instructions */}
+        {/* Instructions */}
         {showNormalSteps ? (
           <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 space-y-5">
             <div>
@@ -243,7 +266,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               </ul>
             </div>
 
-            {isOpponent && (
+            {(isOpponent || isOnOpponentTeam) && (
               <div>
                 <h3 className="font-bold mb-2 text-purple-400 text-sm sm:text-base">Challenger Instructions</h3>
                 <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 list-decimal list-inside">
@@ -321,18 +344,17 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         )}
 
-        {/* Live Code + Chat */}
-  <MatchLive
-  matchId={id}
-  initialCode={match.private_code}
-  initialMessages={messages || []}
-  isCreator={!!isCreator}
-  isAccepted={isAccepted}
-  isParticipant={!!isParticipant}
-  ruleset={match.ruleset || "Street Brawl"}
-/>
+        <MatchLive
+          matchId={id}
+          initialCode={match.private_code}
+          initialMessages={messages || []}
+          isCreator={!!isCreator}
+          isAccepted={isAccepted}
+          isParticipant={!!isParticipant}
+          ruleset={match.ruleset || "Street Brawl"}
+        />
 
-        {/* Actions */}
+        {/* Actions — captains only for report/dispute/cancel */}
         <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center mt-8 sm:mt-10">
           {isOpen && !isCreator && (
             <form action={async () => { "use server"; await acceptMatch(id) }} className="w-full sm:w-auto">
@@ -348,7 +370,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             </form>
           )}
 
-          {isAccepted && isParticipant && (
+          {isAccepted && isCaptain && (
             <>
               {((isCreator && !match.creator_report) || (isOpponent && !match.opponent_report)) ? (
                 <form action={reportResult.bind(null, id)} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
@@ -368,16 +390,18 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               )}
             </>
           )}
-{isAccepted && isParticipant && (
-  <form action={async () => { "use server"; await disputeMatch(id) }} className="w-full sm:w-auto">
-    <button
-      type="submit"
-      className="w-full sm:w-auto px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition text-sm"
-    >
-      Open Dispute
-    </button>
-  </form>
-)}
+
+          {isAccepted && isCaptain && (
+            <form action={async () => { "use server"; await disputeMatch(id) }} className="w-full sm:w-auto">
+              <button
+                type="submit"
+                className="w-full sm:w-auto px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition text-sm"
+              >
+                Open Dispute
+              </button>
+            </form>
+          )}
+
           <Link href="/matches" className="w-full sm:w-auto text-center px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
             Back to Matches
           </Link>
