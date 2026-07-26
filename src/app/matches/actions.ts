@@ -360,31 +360,6 @@ if (loserTeamId) await applyTeamMemberRecords(loserTeamId, false)
           await supabase.from("teams").update({ losses: (lt.losses || 0) + 1 }).eq("id", loserTeamId)
         }
       }
-	        // Every teammate gets personal W/L + XP (not just the captain)
-      async function applyTeamMemberRecords(teamId: string | null, won: boolean) {
-        if (!teamId) return
-        const { data: members } = await supabase
-          .from("team_members")
-          .select("profile_id")
-          .eq("team_id", teamId)
-
-        if (!members) return
-
-        for (const m of members) {
-          if (m.profile_id === winnerId || m.profile_id === loserId) continue
-          if (won) {
-            await supabase.rpc("increment_wins", { profile_id: m.profile_id })
-            await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: 30 })
-          } else {
-            await supabase.rpc("increment_losses", { profile_id: m.profile_id })
-            await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: -20 })
-          }
-        }
-      }
-
-      await applyTeamMemberRecords(winnerTeamId, true)
-      await applyTeamMemberRecords(loserTeamId, false)
-	  
 	  
       // Ladder tracking
       if (updated.format === "1v1") {
