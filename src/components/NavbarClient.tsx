@@ -26,15 +26,16 @@ export default function NavbarClient({
 }) {
   const [open, setOpen] = useState(false)
 
-  const links = [
-    { href: "/ranks", label: "Ranks" },
-    { href: "/matches", label: "Match Finder" },
-    { href: "/players", label: "Players" },
-    { href: "/leaderboard", label: "Leaderboard" },
-    { href: "/quests", label: "Quests" },
-    { href: "/tickets", label: "Tickets" },
-    { href: "/rules", label: "Rules" },
-  ]
+const links = [
+  { href: "/ranks", label: "Ranks" },
+  { href: "/matches", label: "Match Finder" },
+  { href: "/teams", label: "Teams" },
+  { href: "/players", label: "Players" },
+  { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/quests", label: "Quests" },
+  { href: "/tickets", label: "Tickets" },
+  { href: "/rules", label: "Rules" },
+]
 
   return (
     <nav className="border-b border-[#1c1c28] bg-[#050508]/95 backdrop-blur sticky top-0 z-50">
