@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
-import { cancelMatch, acceptMatch, reportResult } from "../actions"
+import { cancelMatch, acceptMatch, reportResult, disputeMatch } from "../actions"
 import MatchLive from "@/components/MatchLive"
 import CopyButton from "@/components/CopyButton"
 
@@ -362,7 +362,16 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               )}
             </>
           )}
-
+{isAccepted && isParticipant && (
+  <form action={async () => { "use server"; await disputeMatch(id) }} className="w-full sm:w-auto">
+    <button
+      type="submit"
+      className="w-full sm:w-auto px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition text-sm"
+    >
+      Open Dispute
+    </button>
+  </form>
+)}
           <Link href="/matches" className="w-full sm:w-auto text-center px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
             Back to Matches
           </Link>
