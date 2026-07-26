@@ -34,8 +34,16 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     .eq("id", id)
     .single()
 	
-	let creatorMembers: any[] = []
-let opponentMembers: any[] = []
+	type TeamMember = {
+  profile: {
+    steam_name: string
+    avatar_url: string | null
+    xp: number
+  } | null
+}
+
+let creatorMembers: TeamMember[] = []
+let opponentMembers: TeamMember[] = []
 
 if (match?.creator_team_id) {
   const { data } = await supabase
