@@ -7,6 +7,52 @@ import { revalidatePath } from "next/cache"
 import { createNotification } from "@/lib/notifications"
 import { bumpLadderEntry } from "@/lib/ladder"
 
+export async function disputeMatch(matchId: string) {
+  const cookieStore = await cookies()
+  const steamId = cookieStore.get("citadel_steam_id")?.value
+  if (!steamId) redirect("/")
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("steam_id", steamId)
+    .single()
+
+  if (!profile) redirect("/")
+
+  const { data: match } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("id", matchId)
+    .single()
+
+  if (!match) redirect("/matches")
+
+  const isParticipant =
+    profile.id === match.creator_id || profile.id === match.opponent_id
+
+  if (!isParticipant) redirect(`/matches/${matchId}`)
+
+  // Only allowed while accepted (stuck / pending report)
+  if (match.status !== "accepted") {
+    redirect(`/matches/${matchId}`)
+  }
+
+  await supabase
+    .from("matches")
+    .update({ status: "disputed" })
+    .eq("id", matchId)
+
+  revalidatePath(`/matches/${matchId}`)
+  revalidatePath("/matches")
+  redirect(`/matches/${matchId}`)
+}
+
 export async function cancelMatch(matchId: string) {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
@@ -304,51 +350,7 @@ export async function reportResult(matchId: string, formData: FormData) {
         }
       }
 
-export async function disputeMatch(matchId: string) {
-  const cookieStore = await cookies()
-  const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("steam_id", steamId)
-    .single()
-
-  if (!profile) redirect("/")
-
-  const { data: match } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("id", matchId)
-    .single()
-
-  if (!match) redirect("/matches")
-
-  const isParticipant =
-    profile.id === match.creator_id || profile.id === match.opponent_id
-
-  if (!isParticipant) redirect(`/matches/${matchId}`)
-
-  // Only allowed while accepted (stuck / pending report)
-  if (match.status !== "accepted") {
-    redirect(`/matches/${matchId}`)
-  }
-
-  await supabase
-    .from("matches")
-    .update({ status: "disputed" })
-    .eq("id", matchId)
-
-  revalidatePath(`/matches/${matchId}`)
-  revalidatePath("/matches")
-  redirect(`/matches/${matchId}`)
-}
 
 
 
