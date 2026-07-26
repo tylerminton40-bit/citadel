@@ -31,8 +31,9 @@ export default function CreateMatchForm({ teams }: { teams: Team[] }) {
         <label className="block text-sm text-gray-400 mb-2">Category</label>
         <select name="ruleset" required className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]">
   <option value="Street Brawl">Street Brawl</option>
+  <option value="Street Brawl - Random">Street Brawl - Random</option>
   <option value="Normal">Normal</option>
-  <option value="Random Character">Random Character</option>
+  <option value="Normal - Random Character">Normal - Random Character</option>
 </select>
       </div>
 

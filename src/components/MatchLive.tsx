@@ -16,6 +16,7 @@ export default function MatchLive({
   isCreator,
   isAccepted,
   isParticipant,
+  ruleset,
 }: {
   matchId: string
   initialCode: string | null
@@ -23,12 +24,15 @@ export default function MatchLive({
   isCreator: boolean
   isAccepted: boolean
   isParticipant: boolean
+  ruleset: string
 }) {
   const [code, setCode] = useState(initialCode)
   const [messages, setMessages] = useState(initialMessages)
   const [newMessage, setNewMessage] = useState("")
   const [codeInput, setCodeInput] = useState("")
   const [copied, setCopied] = useState(false)
+
+  const isNormal = ruleset?.startsWith("Normal")
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -67,12 +71,15 @@ export default function MatchLive({
     })
   }
 
-async function copyConnect() {
-  if (!code) return
-  await navigator.clipboard.writeText(code)
-  setCopied(true)
-  setTimeout(() => setCopied(false), 1500)
-}
+  async function copyConnect() {
+    if (!code) return
+    const text = isNormal
+      ? (code.toLowerCase().startsWith("connect ") ? code : `connect ${code}`)
+      : code
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
 
   return (
     <div className="space-y-6">
@@ -92,7 +99,7 @@ async function copyConnect() {
               onClick={copyConnect}
               className="w-full py-2.5 rounded-xl text-sm bg-[#FF5C00]/15 text-[#FF5C00] hover:bg-[#FF5C00]/25 transition font-medium"
             >
-              {copied ? "Copied!" : "Copy CODE"}
+              {copied ? "Copied!" : isNormal ? "Copy connect CODE" : "Copy Code"}
             </button>
             {isCreator && isAccepted && (
               <div className="space-y-2 pt-2">

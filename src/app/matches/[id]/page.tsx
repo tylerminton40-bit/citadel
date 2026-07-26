@@ -86,7 +86,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const isCompleted = match.status === "completed"
   const isPendingResult = isAccepted && (match.creator_report || match.opponent_report)
 
-  const isNormal = match.ruleset === "Normal"
+  const isNormal = match.ruleset?.startsWith("Normal")
   const isSmallFormat = ["1v1", "2v2", "3v3"].includes(match.format)
   const showNormalSteps = isNormal && isSmallFormat && isAccepted
 
@@ -323,14 +323,15 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         )}
 
         {/* Live Code + Chat */}
-        <MatchLive
-          matchId={id}
-          initialCode={match.private_code}
-          initialMessages={messages || []}
-          isCreator={!!isCreator}
-          isAccepted={isAccepted}
-          isParticipant={!!isParticipant}
-        />
+  <MatchLive
+  matchId={id}
+  initialCode={match.private_code}
+  initialMessages={messages || []}
+  isCreator={!!isCreator}
+  isAccepted={isAccepted}
+  isParticipant={!!isParticipant}
+  ruleset={match.ruleset || "Street Brawl"}
+/>
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center mt-8 sm:mt-10">
