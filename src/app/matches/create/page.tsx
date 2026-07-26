@@ -16,15 +16,24 @@ export default async function CreateMatchPage() {
         <h1 className="text-3xl font-bold mb-8">Create XP Match</h1>
 
         <form action={createMatch} className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 space-y-6">
+          {/* Category */}
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Category</label>
+            <select name="ruleset" required className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]">
+              <option value="Street Brawl">Street Brawl</option>
+              <option value="Normal">Normal</option>
+            </select>
+          </div>
+
           {/* Format */}
           <div>
             <label className="block text-sm text-gray-400 mb-2">Format</label>
             <select name="format" required className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]">
-              <option value="1v1">1v1 (Street Brawl)</option>
-              <option value="2v2">2v2 (Street Brawl)</option>
-              <option value="3v3">3v3 (Street Brawl)</option>
-              <option value="4v4">4v4 (Street Brawl)</option>
-              <option value="6v6">6v6 (Normal)</option>
+              <option value="1v1">1v1</option>
+              <option value="2v2">2v2</option>
+              <option value="3v3">3v3</option>
+              <option value="4v4">4v4</option>
+              <option value="6v6">6v6</option>
             </select>
           </div>
 
@@ -51,7 +60,6 @@ export default async function CreateMatchPage() {
               <option value="OCE">Oceania</option>
             </select>
           </div>
-
 
           <button type="submit" className="btn-primary w-full py-3 rounded-xl font-medium">
             Post Match

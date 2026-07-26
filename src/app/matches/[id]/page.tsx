@@ -140,18 +140,99 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Instructions */}
-        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
-          <h3 className="font-bold mb-3 text-[#FF5C00] text-sm sm:text-base">How to Join</h3>
-          <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 sm:space-y-2 list-decimal list-inside">
-            <li>Open <strong className="text-white">Deadlock</strong></li>
-            <li>Go to <strong className="text-white">Private Match</strong></li>
-            <li>Host creates lobby (Street Brawl 1v1–4v4 / Normal 6v6)</li>
-            <li>Host posts the <strong className="text-white">Join Code</strong> below</li>
-            <li>Other player joins with the code</li>
-            <li>Play ({match.best_of}) then both report the result</li>
-          </ol>
+    {/* Instructions */}
+{(() => {
+  const isNormal = match.ruleset === "Normal"
+  const isSmallFormat = ["1v1", "2v2", "3v3"].includes(match.format)
+  const showNormalSteps = isNormal && isSmallFormat && isAccepted
+
+  if (showNormalSteps) {
+    return (
+      <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 space-y-5">
+        <div>
+          <h3 className="font-bold mb-2 text-[#FF5C00] text-sm sm:text-base">Rules</h3>
+          <ul className="text-xs sm:text-sm text-gray-400 space-y-1 list-disc list-inside">
+            <li>No Urn — decays instantly if picked up</li>
+            <li>No Rift — never spawns</li>
+          </ul>
         </div>
+
+        {/* Challenger only */}
+        {isOpponent && (
+          <div>
+            <h3 className="font-bold mb-2 text-purple-400 text-sm sm:text-base">Challenger Instructions</h3>
+            <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 list-decimal list-inside">
+              <li>Wait for the host to post the connect code below</li>
+              <li>Open console and paste the connect code</li>
+              <li>Choose <strong className="text-white">Archmother</strong> and your character</li>
+              <li>Wait for host to unpause</li>
+            </ol>
+          </div>
+        )}
+
+        {/* Host only */}
+        {isCreator && (
+          <div className="space-y-4">
+            <h3 className="font-bold text-[#FF5C00] text-sm sm:text-base">Host Steps</h3>
+
+            {/* Step 1 */}
+            <div className="bg-[#08080d] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-gray-300">Step 1 — Join the map (leave console open)</span>
+                <CopyButton text="map dl_midtown" />
+              </div>
+              <code className="text-xs text-[#FF5C00] break-all">map dl_midtown</code>
+            </div>
+
+            {/* Step 2 */}
+            <div className="bg-[#08080d] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-bold text-gray-300">Step 2 — Pause + setup (paste as soon as you load in)</span>
+                <CopyButton text="sv_cheats 1; citadel_pause; status; citadel_idol_duration_until_decay 1; citadel_idol_decay_duration 1; citadel_koth_spawn_initial_delay 9999999; citadel_active_lane 4" />
+              </div>
+              <code className="text-xs text-[#FF5C00] break-all">
+                sv_cheats 1; citadel_pause; status; citadel_idol_duration_until_decay 1; citadel_idol_decay_duration 1; citadel_koth_spawn_initial_delay 9999999; citadel_active_lane 4
+              </code>
+              <p className="text-[11px] text-gray-500 mt-2">This pauses the game so your opponent can join.</p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="bg-[#08080d] rounded-xl p-4">
+              <div className="text-xs font-bold text-gray-300 mb-2">Step 3 — Post your connect code</div>
+              <p className="text-[11px] text-gray-500 mb-2">
+                From the <code className="text-gray-400">status</code> output in console, copy your IP/port info and submit it as the Match Code below.
+                The copy button will format it as <code className="text-[#FF5C00]">connect YOURCODE</code>.
+              </p>
+            </div>
+
+            {/* Step 4 */}
+            <div className="bg-[#08080d] rounded-xl p-4">
+              <div className="text-xs font-bold text-gray-300 mb-1">Step 4 — Unpause</div>
+              <p className="text-[11px] text-gray-500">
+                When opponent is in, press <strong className="text-white">P</strong> to unpause and start the match.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Default instructions (Street Brawl or Normal 4v4/6v6)
+  return (
+    <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
+      <h3 className="font-bold mb-3 text-[#FF5C00] text-sm sm:text-base">How to Join</h3>
+      <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 sm:space-y-2 list-decimal list-inside">
+        <li>Open <strong className="text-white">Deadlock</strong></li>
+        <li>Go to <strong className="text-white">Private Match</strong></li>
+        <li>Host creates lobby ({match.ruleset} {match.format})</li>
+        <li>Host posts the <strong className="text-white">Join Code</strong> below</li>
+        <li>Other player joins with the code</li>
+        <li>Play ({match.best_of}) then both report the result</li>
+      </ol>
+    </div>
+  )
+})()}
 
         {/* Live Code + Chat */}
         <MatchLive

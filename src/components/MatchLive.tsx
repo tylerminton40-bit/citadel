@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 
 type Message = {
   id: string
@@ -28,15 +28,13 @@ export default function MatchLive({
   const [messages, setMessages] = useState(initialMessages)
   const [newMessage, setNewMessage] = useState("")
   const [codeInput, setCodeInput] = useState("")
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const [copied, setCopied] = useState(false)
 
-  // Poll every 2 seconds
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
         const res = await fetch(`/api/match-live?matchId=${matchId}&t=${Date.now()}`)
         const data = await res.json()
-
         if (data.code !== undefined) setCode(data.code)
         if (data.messages) setMessages(data.messages)
       } catch (err) {
@@ -62,12 +60,19 @@ export default function MatchLive({
     if (!newMessage.trim()) return
     const text = newMessage
     setNewMessage("")
-
     await fetch("/api/match-chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ matchId, message: text }),
     })
+  }
+
+  async function copyConnect() {
+    if (!code) return
+    const text = code.toLowerCase().startsWith("connect ") ? code : `connect ${code}`
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
   }
 
   return (
@@ -79,27 +84,33 @@ export default function MatchLive({
           <span className="text-xs text-gray-500">Live</span>
         </div>
 
-{code ? (
-  <div className="space-y-3">
-    <div className="text-2xl font-mono font-bold tracking-widest text-center py-4 bg-[#08080d] rounded-xl">
-      {code}
-    </div>
-    {isCreator && isAccepted && (
-      <div className="space-y-2">
-        <input
-          value={codeInput}
-          onChange={(e) => setCodeInput(e.target.value)}
-          type="text"
-          placeholder="Enter new code..."
-          className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF5C00]"
-        />
-        <button onClick={postCode} className="w-full py-2 rounded-xl text-sm border border-[#1c1c28] hover:border-[#FF5C00]/50 transition">
-          Update Code
-        </button>
-      </div>
-    )}
-  </div>
-) : isCreator && isAccepted ? (
+        {code ? (
+          <div className="space-y-3">
+            <div className="text-2xl font-mono font-bold tracking-widest text-center py-4 bg-[#08080d] rounded-xl">
+              {code}
+            </div>
+            <button
+              onClick={copyConnect}
+              className="w-full py-2.5 rounded-xl text-sm bg-[#FF5C00]/15 text-[#FF5C00] hover:bg-[#FF5C00]/25 transition font-medium"
+            >
+              {copied ? "Copied!" : "Copy connect CODE"}
+            </button>
+            {isCreator && isAccepted && (
+              <div className="space-y-2 pt-2">
+                <input
+                  value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value)}
+                  type="text"
+                  placeholder="Enter new code..."
+                  className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF5C00]"
+                />
+                <button onClick={postCode} className="w-full py-2 rounded-xl text-sm border border-[#1c1c28] hover:border-[#FF5C00]/50 transition">
+                  Update Code
+                </button>
+              </div>
+            )}
+          </div>
+        ) : isCreator && isAccepted ? (
           <div className="space-y-3">
             <input
               value={codeInput}
