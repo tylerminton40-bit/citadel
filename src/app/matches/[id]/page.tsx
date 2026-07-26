@@ -7,6 +7,14 @@ import { cancelMatch, acceptMatch, reportResult } from "../actions"
 import MatchLive from "@/components/MatchLive"
 import CopyButton from "@/components/CopyButton"
 
+type TeamMember = {
+  profile: {
+    steam_name: string
+    avatar_url: string | null
+    xp: number
+  } | null
+}
+
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const cookieStore = await cookies()
@@ -29,37 +37,12 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     .select(`
       *,
       creator:profiles!matches_creator_id_fkey(id, steam_name, avatar_url, xp),
-      opponent:profiles!matches_opponent_id_fkey(id, steam_name, avatar_url, xp)
+      opponent:profiles!matches_opponent_id_fkey(id, steam_name, avatar_url, xp),
+      creator_team:teams!matches_creator_team_id_fkey(id, name, tag, size, wins, losses),
+      opponent_team:teams!matches_opponent_team_id_fkey(id, name, tag, size, wins, losses)
     `)
     .eq("id", id)
     .single()
-	
-	type TeamMember = {
-  profile: {
-    steam_name: string
-    avatar_url: string | null
-    xp: number
-  } | null
-}
-
-let creatorMembers: TeamMember[] = []
-let opponentMembers: TeamMember[] = []
-
-if (match?.creator_team_id) {
-  const { data } = await supabase
-    .from("team_members")
-    .select("profile:profiles(steam_name, avatar_url, xp)")
-    .eq("team_id", match.creator_team_id)
-  creatorMembers = (data as TeamMember[]) || []
-}
-
-if (match?.opponent_team_id) {
-  const { data } = await supabase
-    .from("team_members")
-    .select("profile:profiles(steam_name, avatar_url, xp)")
-    .eq("team_id", match.opponent_team_id)
-  opponentMembers = (data as TeamMember[]) || []
-}
 
   if (!match) {
     return (
@@ -68,6 +51,25 @@ if (match?.opponent_team_id) {
         <div className="text-center py-32 text-gray-500">Match not found</div>
       </div>
     )
+  }
+
+  let creatorMembers: TeamMember[] = []
+  let opponentMembers: TeamMember[] = []
+
+  if (match.creator_team_id) {
+    const { data } = await supabase
+      .from("team_members")
+      .select("profile:profiles(steam_name, avatar_url, xp)")
+      .eq("team_id", match.creator_team_id)
+    creatorMembers = (data as unknown as TeamMember[]) || []
+  }
+
+  if (match.opponent_team_id) {
+    const { data } = await supabase
+      .from("team_members")
+      .select("profile:profiles(steam_name, avatar_url, xp)")
+      .eq("team_id", match.opponent_team_id)
+    opponentMembers = (data as unknown as TeamMember[]) || []
   }
 
   const { data: messages } = await supabase
@@ -84,6 +86,10 @@ if (match?.opponent_team_id) {
   const isCompleted = match.status === "completed"
   const isPendingResult = isAccepted && (match.creator_report || match.opponent_report)
 
+  const isNormal = match.ruleset === "Normal"
+  const isSmallFormat = ["1v1", "2v2", "3v3"].includes(match.format)
+  const showNormalSteps = isNormal && isSmallFormat && isAccepted
+
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
@@ -92,7 +98,7 @@ if (match?.opponent_team_id) {
         {/* Status */}
         <div className="flex items-center justify-between mb-6 sm:mb-8 gap-2">
           <div className="text-xs sm:text-sm text-gray-400 truncate">
-            {match.format} • {match.best_of} • {match.region}
+            {match.format} • {match.best_of} • {match.region} • {match.ruleset}
           </div>
           <div className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium shrink-0 ${
             isOpen ? "bg-yellow-500/20 text-yellow-400" :
@@ -111,111 +117,109 @@ if (match?.opponent_team_id) {
           </div>
         </div>
 
-{/* Head to Head */}
-<div className="bg-[#111118] border border-[#1c1c28] rounded-2xl sm:rounded-3xl p-5 sm:p-8 mb-6 sm:mb-8">
-  <div className="grid grid-cols-3 items-start gap-2 sm:gap-6">
-    {/* Host side */}
-    <div className="text-center">
-      {match.creator_team ? (
-        <>
-          <div className="font-bold text-sm sm:text-lg text-[#FF5C00] mb-1">
-            {match.creator_team.tag ? `[${match.creator_team.tag}] ` : ""}{match.creator_team.name}
-          </div>
-          <div className="text-xs text-gray-400 mb-3">
-            <span className="text-emerald-400">{match.creator_team.wins}W</span>
-            {" / "}
-            <span className="text-red-400">{match.creator_team.losses}L</span>
-          </div>
-          <div className="space-y-2">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {creatorMembers.map((m: any, i: number) => (
-              <div key={i} className="flex items-center gap-2 justify-center">
-                {m.profile?.avatar_url && (
-                  <img src={m.profile.avatar_url} alt="" className="w-7 h-7 rounded-full" />
-                )}
-                <div className="text-left min-w-0">
-                  <div className="text-xs font-medium truncate">{m.profile?.steam_name}</div>
-                  <div className="text-[10px] text-gray-500">{m.profile?.xp || 0} XP</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium mt-2">Host • Hidden King</div>
-        </>
-      ) : (
-        <>
-          {match.creator?.avatar_url ? (
-            <img src={match.creator.avatar_url} alt="" className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-[#FF5C00]" />
-          ) : (
-            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 bg-[#1c1c28]" />
-          )}
-          <div className="font-bold text-sm sm:text-lg truncate px-1">{match.creator?.steam_name || "Unknown"}</div>
-          <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Host</div>
-          <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium">Hidden King</div>
-        </>
-      )}
-    </div>
+        {/* Head to Head */}
+        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl sm:rounded-3xl p-5 sm:p-8 mb-6 sm:mb-8">
+          <div className="grid grid-cols-3 items-start gap-2 sm:gap-6">
+            {/* Host side */}
+            <div className="text-center">
+              {match.creator_team ? (
+                <>
+                  <div className="font-bold text-sm sm:text-lg text-[#FF5C00] mb-1">
+                    {match.creator_team.tag ? `[${match.creator_team.tag}] ` : ""}{match.creator_team.name}
+                  </div>
+                  <div className="text-xs text-gray-400 mb-3">
+                    <span className="text-emerald-400">{match.creator_team.wins}W</span>
+                    {" / "}
+                    <span className="text-red-400">{match.creator_team.losses}L</span>
+                  </div>
+                  <div className="space-y-2">
+                    {creatorMembers.map((m, i) => (
+                      <div key={i} className="flex items-center gap-2 justify-center">
+                        {m.profile?.avatar_url && (
+                          <img src={m.profile.avatar_url} alt="" className="w-7 h-7 rounded-full" />
+                        )}
+                        <div className="text-left min-w-0">
+                          <div className="text-xs font-medium truncate">{m.profile?.steam_name}</div>
+                          <div className="text-[10px] text-gray-500">{m.profile?.xp || 0} XP</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium mt-2">Host • Hidden King</div>
+                </>
+              ) : (
+                <>
+                  {match.creator?.avatar_url ? (
+                    <img src={match.creator.avatar_url} alt="" className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-[#FF5C00]" />
+                  ) : (
+                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 bg-[#1c1c28]" />
+                  )}
+                  <div className="font-bold text-sm sm:text-lg truncate px-1">{match.creator?.steam_name || "Unknown"}</div>
+                  <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Host</div>
+                  <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium">Hidden King</div>
+                </>
+              )}
+            </div>
 
-    {/* VS */}
-    <div className="text-center pt-4 sm:pt-8">
-      <div className="text-2xl sm:text-4xl font-black text-[#FF5C00] mb-1 sm:mb-2">VS</div>
-      <div className="text-[10px] sm:text-sm text-gray-400">{match.format}</div>
-      <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">{match.best_of}</div>
-      <div className="text-[10px] sm:text-xs text-gray-500">{match.ruleset}</div>
-    </div>
+            {/* VS */}
+            <div className="text-center pt-4 sm:pt-8">
+              <div className="text-2xl sm:text-4xl font-black text-[#FF5C00] mb-1 sm:mb-2">VS</div>
+              <div className="text-[10px] sm:text-sm text-gray-400">{match.format}</div>
+              <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">{match.best_of}</div>
+              <div className="text-[10px] sm:text-xs text-gray-500">{match.ruleset}</div>
+            </div>
 
-    {/* Challenger side */}
-    <div className="text-center">
-      {match.opponent_team ? (
-        <>
-          <div className="font-bold text-sm sm:text-lg text-purple-400 mb-1">
-            {match.opponent_team.tag ? `[${match.opponent_team.tag}] ` : ""}{match.opponent_team.name}
+            {/* Challenger side */}
+            <div className="text-center">
+              {match.opponent_team ? (
+                <>
+                  <div className="font-bold text-sm sm:text-lg text-purple-400 mb-1">
+                    {match.opponent_team.tag ? `[${match.opponent_team.tag}] ` : ""}{match.opponent_team.name}
+                  </div>
+                  <div className="text-xs text-gray-400 mb-3">
+                    <span className="text-emerald-400">{match.opponent_team.wins}W</span>
+                    {" / "}
+                    <span className="text-red-400">{match.opponent_team.losses}L</span>
+                  </div>
+                  <div className="space-y-2">
+                    {opponentMembers.map((m, i) => (
+                      <div key={i} className="flex items-center gap-2 justify-center">
+                        {m.profile?.avatar_url && (
+                          <img src={m.profile.avatar_url} alt="" className="w-7 h-7 rounded-full" />
+                        )}
+                        <div className="text-left min-w-0">
+                          <div className="text-xs font-medium truncate">{m.profile?.steam_name}</div>
+                          <div className="text-[10px] text-gray-500">{m.profile?.xp || 0} XP</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="text-[10px] sm:text-xs text-purple-400 font-medium mt-2">Challenger • Archmother</div>
+                </>
+              ) : match.opponent ? (
+                <>
+                  {match.opponent.avatar_url ? (
+                    <img src={match.opponent.avatar_url} alt="" className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-purple-500" />
+                  ) : (
+                    <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 bg-[#1c1c28]" />
+                  )}
+                  <div className="font-bold text-sm sm:text-lg truncate px-1">{match.opponent.steam_name}</div>
+                  <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Challenger</div>
+                  <div className="text-[10px] sm:text-xs text-purple-400 font-medium">Archmother</div>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-dashed border-gray-600 flex items-center justify-center text-gray-500 text-[10px] sm:text-sm">
+                    Wait
+                  </div>
+                  <div className="font-bold text-sm sm:text-lg truncate px-1">Waiting...</div>
+                  <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Challenger</div>
+                  <div className="text-[10px] sm:text-xs text-purple-400 font-medium">Archmother</div>
+                </>
+              )}
+            </div>
           </div>
-          <div className="text-xs text-gray-400 mb-3">
-            <span className="text-emerald-400">{match.opponent_team.wins}W</span>
-            {" / "}
-            <span className="text-red-400">{match.opponent_team.losses}L</span>
-          </div>
-          <div className="space-y-2">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {opponentMembers.map((m: any, i: number) => (
-              <div key={i} className="flex items-center gap-2 justify-center">
-                {m.profile?.avatar_url && (
-                  <img src={m.profile.avatar_url} alt="" className="w-7 h-7 rounded-full" />
-                )}
-                <div className="text-left min-w-0">
-                  <div className="text-xs font-medium truncate">{m.profile?.steam_name}</div>
-                  <div className="text-[10px] text-gray-500">{m.profile?.xp || 0} XP</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="text-[10px] sm:text-xs text-purple-400 font-medium mt-2">Challenger • Archmother</div>
-        </>
-      ) : match.opponent ? (
-        <>
-          {match.opponent.avatar_url ? (
-            <img src={match.opponent.avatar_url} alt="" className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-purple-500" />
-          ) : (
-            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 bg-[#1c1c28]" />
-          )}
-          <div className="font-bold text-sm sm:text-lg truncate px-1">{match.opponent.steam_name}</div>
-          <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Challenger</div>
-          <div className="text-[10px] sm:text-xs text-purple-400 font-medium">Archmother</div>
-        </>
-      ) : (
-        <>
-          <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-dashed border-gray-600 flex items-center justify-center text-gray-500 text-[10px] sm:text-sm">
-            Wait
-          </div>
-          <div className="font-bold text-sm sm:text-lg truncate px-1">Waiting...</div>
-          <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Challenger</div>
-          <div className="text-[10px] sm:text-xs text-purple-400 font-medium">Archmother</div>
-        </>
-      )}
-    </div>
-  </div>
-</div>
+        </div>
 
         {/* Match Info */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
@@ -228,117 +232,98 @@ if (match?.opponent_team_id) {
           </div>
         </div>
 
-    {/* Instructions */}
-{(() => {
-  const isNormal = match.ruleset === "Normal"
-  const isSmallFormat = ["1v1", "2v2", "3v3"].includes(match.format)
-  const showNormalSteps = isNormal && isSmallFormat && isAccepted
+        {/* Instructions */}
+        {showNormalSteps ? (
+          <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 space-y-5">
+            <div>
+              <h3 className="font-bold mb-2 text-[#FF5C00] text-sm sm:text-base">Rules</h3>
+              <ul className="text-xs sm:text-sm text-gray-400 space-y-1 list-disc list-inside">
+                <li>No Urn — decays instantly if picked up</li>
+                <li>No Rift — never spawns</li>
+              </ul>
+            </div>
 
-  if (showNormalSteps) {
-    return (
-      <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 space-y-5">
-        <div>
-          <h3 className="font-bold mb-2 text-[#FF5C00] text-sm sm:text-base">Rules</h3>
-          <ul className="text-xs sm:text-sm text-gray-400 space-y-1 list-disc list-inside">
-            <li>No Urn — decays instantly if picked up</li>
-            <li>No Rift — never spawns</li>
-          </ul>
-        </div>
+            {isOpponent && (
+              <div>
+                <h3 className="font-bold mb-2 text-purple-400 text-sm sm:text-base">Challenger Instructions</h3>
+                <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 list-decimal list-inside">
+                  <li>Wait for the host to post the connect code below</li>
+                  <li>Open console and paste the connect code</li>
+                  <li>Choose <strong className="text-white">Archmother</strong> and your character</li>
+                  <li>Wait for host to unpause</li>
+                </ol>
+              </div>
+            )}
 
-        {/* Challenger only */}
-        {isOpponent && (
-          <div>
-            <h3 className="font-bold mb-2 text-purple-400 text-sm sm:text-base">Challenger Instructions</h3>
-            <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 list-decimal list-inside">
-              <li>Wait for the host to post the connect code below</li>
-              <li>Open console and paste the connect code</li>
-              <li>Choose <strong className="text-white">Archmother</strong> and your character</li>
-              <li>Wait for host to unpause</li>
+            {isCreator && (
+              <div className="space-y-4">
+                <h3 className="font-bold text-[#FF5C00] text-sm sm:text-base">Host Steps</h3>
+
+                <div className="bg-[#08080d] rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-gray-300">Step 1 — Join the map (leave console open)</span>
+                    <CopyButton text="map dl_midtown" />
+                  </div>
+                  <code className="text-xs text-[#FF5C00] break-all">map dl_midtown</code>
+                </div>
+
+                <div className="bg-[#08080d] rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-gray-300">Step 2 — Pause + setup</span>
+                    <CopyButton text="sv_cheats 1; citadel_pause; status; citadel_idol_duration_until_decay 1; citadel_idol_decay_duration 1; citadel_koth_spawn_initial_delay 9999999; citadel_active_lane 4" />
+                  </div>
+                  <code className="text-xs text-[#FF5C00] break-all">
+                    sv_cheats 1; citadel_pause; status; citadel_idol_duration_until_decay 1; citadel_idol_decay_duration 1; citadel_koth_spawn_initial_delay 9999999; citadel_active_lane 4
+                  </code>
+                  <p className="text-[11px] text-gray-500 mt-2">This pauses the game so your opponent can join.</p>
+                </div>
+
+                <div className="bg-[#08080d] rounded-xl p-4">
+                  <div className="text-xs font-bold text-gray-300 mb-2">Step 3 — Post your connect code</div>
+                  <p className="text-[11px] text-gray-500 mb-3">
+                    From the <code className="text-gray-400">status</code> output, copy the long number in parentheses and submit it as the Match Code.
+                  </p>
+                  <img
+                    src="/console-steamid-example.png"
+                    alt="Console steamid example"
+                    className="w-full rounded-lg border border-[#1c1c28] mb-2"
+                  />
+                  <p className="text-[11px] text-gray-500">
+                    Example: copy <span className="text-[#FF5C00] font-mono">90289632610184204</span>
+                  </p>
+                </div>
+
+                <div className="bg-[#08080d] rounded-xl p-4">
+                  <div className="text-xs font-bold text-gray-300 mb-1">Step 4 — Unpause</div>
+                  <p className="text-[11px] text-gray-500">
+                    When opponent is in, press <strong className="text-white">P</strong> to unpause and start.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
+            <h3 className="font-bold mb-3 text-[#FF5C00] text-sm sm:text-base">How to Join</h3>
+            <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 sm:space-y-2 list-decimal list-inside">
+              <li>Open <strong className="text-white">Deadlock</strong></li>
+              <li>Go to <strong className="text-white">Private Match</strong></li>
+              <li>Host creates lobby ({match.ruleset} {match.format})</li>
+              <li>Host posts the <strong className="text-white">Join Code</strong> below</li>
+              <li>Other player joins with the code</li>
+              <li>Play ({match.best_of}) then both report the result</li>
             </ol>
           </div>
         )}
-
-        {/* Host only */}
-        {isCreator && (
-          <div className="space-y-4">
-            <h3 className="font-bold text-[#FF5C00] text-sm sm:text-base">Host Steps</h3>
-
-            {/* Step 1 */}
-            <div className="bg-[#08080d] rounded-xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-gray-300">Step 1 — Join the map (leave console open)</span>
-                <CopyButton text="map dl_midtown" />
-              </div>
-              <code className="text-xs text-[#FF5C00] break-all">map dl_midtown</code>
-            </div>
-
-            {/* Step 2 */}
-            <div className="bg-[#08080d] rounded-xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-gray-300">Step 2 — Pause + setup (paste as soon as you load in)</span>
-                <CopyButton text="sv_cheats 1; citadel_pause; status; citadel_idol_duration_until_decay 1; citadel_idol_decay_duration 1; citadel_koth_spawn_initial_delay 9999999; citadel_active_lane 4" />
-              </div>
-              <code className="text-xs text-[#FF5C00] break-all">
-                sv_cheats 1; citadel_pause; status; citadel_idol_duration_until_decay 1; citadel_idol_decay_duration 1; citadel_koth_spawn_initial_delay 9999999; citadel_active_lane 4
-              </code>
-              <p className="text-[11px] text-gray-500 mt-2">This pauses the game so your opponent can join. Choose Hidden King and the character you are playing.</p>
-            </div>
-
-      {/* Step 3 */}
-<div className="bg-[#08080d] rounded-xl p-4">
-  <div className="text-xs font-bold text-gray-300 mb-2">Step 3 — Post your connect code</div>
-  <p className="text-[11px] text-gray-500 mb-3">
-    After running the command above, look in console for the line with <code className="text-gray-400">steamid</code>.
-    Copy the long number and the brackets and submit it as the Match Code below.
-    The copy button will format it as <code className="text-[#FF5C00]">connect YOURCODE</code>.
-  </p>
-  <img
-    src="/console-steamid-example.png"
-    alt="Console steamid example"
-    className="w-full rounded-lg border border-[#1c1c28] mb-2"
-  />
-  <p className="text-[11px] text-gray-500">
-    Example: copy <span className="text-[#FF5C00] font-mono">[A:1:9028963261:01842]</span> (the number and the brackets)
-  </p>
-</div>
-
-            {/* Step 4 */}
-            <div className="bg-[#08080d] rounded-xl p-4">
-              <div className="text-xs font-bold text-gray-300 mb-1">Step 4 — Unpause</div>
-              <p className="text-[11px] text-gray-500">
-                When opponent is in, press <strong className="text-white">P</strong> to unpause and start the match. You will see an empty character portrait on the other team when they have joined.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // Default instructions (Street Brawl or Normal 4v4/6v6)
-  return (
-    <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
-      <h3 className="font-bold mb-3 text-[#FF5C00] text-sm sm:text-base">How to Join</h3>
-      <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 sm:space-y-2 list-decimal list-inside">
-        <li>Open <strong className="text-white">Deadlock</strong></li>
-        <li>Go to <strong className="text-white">Private Match</strong></li>
-        <li>Host creates lobby ({match.ruleset} {match.format})</li>
-        <li>Host posts the <strong className="text-white">Join Code</strong> below</li>
-        <li>Other player joins with the code</li>
-        <li>Play ({match.best_of}) then both report the result</li>
-      </ol>
-    </div>
-  )
-})()}
 
         {/* Live Code + Chat */}
         <MatchLive
           matchId={id}
           initialCode={match.private_code}
           initialMessages={messages || []}
-          isCreator={isCreator}
+          isCreator={!!isCreator}
           isAccepted={isAccepted}
-          isParticipant={isParticipant}
+          isParticipant={!!isParticipant}
         />
 
         {/* Actions */}
