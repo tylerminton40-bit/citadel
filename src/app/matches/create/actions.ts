@@ -12,9 +12,12 @@ export async function createMatch(formData: FormData) {
   const format = formData.get("format") as string
   const bestOf = formData.get("best_of") as string
   const region = formData.get("region") as string
-  const ruleset = (formData.get("ruleset") as string) || "Street Brawl"
   const teamId = (formData.get("team_id") as string) || null
-  const map = ruleset === "Normal" ? "Normal" : "Street Brawl"
+const ruleset = (formData.get("ruleset") as string) || "Street Brawl"
+const map =
+  ruleset === "Normal" ? "Normal" :
+  ruleset === "Random Character" ? "Random Character" :
+  "Street Brawl"
 
   const needsTeam = ["2v2", "3v3", "4v4", "6v6"].includes(format)
   const sizeMap: Record<string, number> = { "2v2": 2, "3v3": 3, "4v4": 4, "6v6": 6 }

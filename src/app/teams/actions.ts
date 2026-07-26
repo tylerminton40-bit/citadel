@@ -25,6 +25,42 @@ async function getProfile() {
   return { supabase, profile }
 }
 
+export async function invitePlayerById(teamId: string, formData: FormData) {
+  const { supabase, profile } = await getProfile()
+  const playerId = formData.get("player_id") as string
+
+  if (!playerId) redirect(`/teams/${teamId}/invite?error=name`)
+
+  const { data: team } = await supabase
+    .from("teams")
+    .select("*")
+    .eq("id", teamId)
+    .eq("owner_id", profile.id)
+    .single()
+
+  if (!team) redirect("/teams")
+
+  const { data: theirTeams } = await supabase
+    .from("team_members")
+    .select("id, team:teams(size)")
+    .eq("profile_id", playerId)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (theirTeams?.some((m: any) => m.team?.size === team.size)) {
+    redirect(`/teams/${teamId}/invite?error=already_on_size`)
+  }
+
+  await supabase.from("team_invites").upsert({
+    team_id: teamId,
+    inviter_id: profile.id,
+    invitee_id: playerId,
+    status: "pending",
+  }, { onConflict: "team_id,invitee_id" })
+
+  revalidatePath("/teams")
+  redirect("/teams")
+}
+
 export async function kickMember(teamId: string, memberProfileId: string) {
   const { supabase, profile } = await getProfile()
 
