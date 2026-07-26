@@ -25,6 +25,29 @@ async function getProfile() {
   return { supabase, profile }
 }
 
+export async function kickMember(teamId: string, memberProfileId: string) {
+  const { supabase, profile } = await getProfile()
+
+  const { data: team } = await supabase
+    .from("teams")
+    .select("*")
+    .eq("id", teamId)
+    .eq("owner_id", profile.id)
+    .single()
+
+  if (!team) redirect("/teams")
+  if (memberProfileId === profile.id) redirect("/teams") // can't kick yourself
+
+  await supabase
+    .from("team_members")
+    .delete()
+    .eq("team_id", teamId)
+    .eq("profile_id", memberProfileId)
+
+  revalidatePath("/teams")
+  redirect("/teams")
+}
+
 export async function createTeam(formData: FormData) {
   const { supabase, profile } = await getProfile()
 

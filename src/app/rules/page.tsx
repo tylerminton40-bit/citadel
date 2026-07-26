@@ -20,7 +20,9 @@ export default function RulesPage() {
               <li><strong className="text-white">Street Brawl</strong> — 1v1, 2v2, 3v3, 4v4, 6v6</li>
               <li><strong className="text-white">Normal</strong> — 1v1, 2v2, 3v3, 4v4, 6v6</li>
               <li>Best of 1 / 3 / 5 / 7 chosen when creating the match</li>
-              <li><strong className="text-white">Normal 1v1–3v3 special rules:</strong> No Urn (decays instantly), No Rift (never spawns)</li>
+              <li>
+  <strong className="text-white">Normal 1v1–3v3:</strong> One-lane map · No Urn (decays instantly) · No Rift (never spawns)
+</li>
             </ul>
           </section>
 

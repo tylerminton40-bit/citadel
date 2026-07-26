@@ -309,6 +309,8 @@ export async function reportResult(matchId: string, formData: FormData) {
         await supabase.rpc("increment_xp", { profile_id: loserId, amount: -20 })
         await supabase.rpc("increment_losses", { profile_id: loserId })
       }
+	  
+	  
 
       // Team W/L (for 2v2–6v6)
       const winnerTeamId =
@@ -319,6 +321,32 @@ export async function reportResult(matchId: string, formData: FormData) {
         updated.creator_report === "creator"
           ? updated.opponent_team_id
           : updated.creator_team_id
+		  
+		  // Give every team member personal W/L (not just the captain who clicked)
+async function applyTeamMemberRecords(teamId: string | null, won: boolean) {
+  if (!teamId) return
+  const { data: members } = await supabase
+    .from("team_members")
+    .select("profile_id")
+    .eq("team_id", teamId)
+
+  if (!members) return
+
+  for (const m of members) {
+    // Skip the captain already counted above if they're winnerId/loserId
+    if (m.profile_id === winnerId || m.profile_id === loserId) continue
+    if (won) {
+      await supabase.rpc("increment_wins", { profile_id: m.profile_id })
+      await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: 30 })
+    } else {
+      await supabase.rpc("increment_losses", { profile_id: m.profile_id })
+      await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: -20 })
+    }
+  }
+}
+
+if (winnerTeamId) await applyTeamMemberRecords(winnerTeamId, true)
+if (loserTeamId) await applyTeamMemberRecords(loserTeamId, false)
 
       if (winnerTeamId) {
         const { data: wt } = await supabase.from("teams").select("wins").eq("id", winnerTeamId).single()

@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
-import { acceptInvite, declineInvite, leaveTeam } from "./actions"
+import { acceptInvite, declineInvite, leaveTeam, kickMember } from "./actions"
 
 export default async function TeamsPage() {
   const cookieStore = await cookies()
@@ -131,17 +131,24 @@ export default async function TeamsPage() {
                     <div className="space-y-2">
                       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                       {members.map((m: any) => (
-                        <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#08080d]">
-                          {m.profile?.avatar_url && (
-                            <img src={m.profile.avatar_url} alt="" className="w-9 h-9 rounded-full" />
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">{m.profile?.steam_name}</div>
-                            <div className="text-xs text-gray-500">{m.role}</div>
-                          </div>
-                          <span className="text-xs text-gray-500">{m.profile?.xp || 0} XP</span>
-                        </div>
-                      ))}
+  <div key={m.id} className="flex items-center gap-3 p-3 rounded-xl bg-[#08080d]">
+    {m.profile?.avatar_url && (
+      <img src={m.profile.avatar_url} alt="" className="w-9 h-9 rounded-full" />
+    )}
+    <div className="flex-1 min-w-0">
+      <div className="text-sm font-medium truncate">{m.profile?.steam_name}</div>
+      <div className="text-xs text-gray-500">{m.role}</div>
+    </div>
+    <span className="text-xs text-gray-500 mr-2">{m.profile?.xp || 0} XP</span>
+    {isOwner && m.role !== "owner" && m.profile?.id && (
+      <form action={kickMember.bind(null, team.id, m.profile.id)}>
+        <button type="submit" className="text-xs text-red-400 hover:text-red-300">
+          Kick
+        </button>
+      </form>
+    )}
+  </div>
+))}
                     </div>
                   </div>
 

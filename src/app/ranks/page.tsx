@@ -123,21 +123,7 @@ export default function RanksPage() {
         </div>
       </section>
 
-      {/* HOW XP WORKS */}
-      <section className="px-4 py-16">
-        <div className="max-w-3xl mx-auto grid sm:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 text-center">
-            <div className="text-4xl font-black text-emerald-400 mb-2">+30</div>
-            <div className="font-bold text-emerald-300 mb-1">Victory</div>
-            <p className="text-xs text-gray-500">Win an XP match. Climb faster. Prove dominance.</p>
-          </div>
-          <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6 text-center">
-            <div className="text-4xl font-black text-red-400 mb-2">−20</div>
-            <div className="font-bold text-red-300 mb-1">Defeat</div>
-            <p className="text-xs text-gray-500">Losses still teach. Get back in queue and climb.</p>
-          </div>
-        </div>
-      </section>
+    
 
       {/* CTA */}
       <section className="px-4 pb-20 text-center">

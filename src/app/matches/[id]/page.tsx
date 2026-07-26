@@ -269,36 +269,44 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
                 <div className="bg-[#08080d] rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-300">Step 2 — Pause + setup</span>
-                    <CopyButton text="sv_cheats 1; citadel_pause; status; citadel_idol_duration_until_decay 1; citadel_idol_decay_duration 1; citadel_koth_spawn_initial_delay 9999999; citadel_active_lane 4" />
-                  </div>
-                  <code className="text-xs text-[#FF5C00] break-all">
-                    sv_cheats 1; citadel_pause; status; citadel_idol_duration_until_decay 1; citadel_idol_decay_duration 1; citadel_koth_spawn_initial_delay 9999999; citadel_active_lane 4
-                  </code>
-                  <p className="text-[11px] text-gray-500 mt-2">This pauses the game so your opponent can join.</p>
-                </div>
+                    <div className="bg-[#08080d] rounded-xl p-4">
+  <div className="flex items-center justify-between mb-2">
+    <span className="text-xs font-bold text-gray-300">Step 2 — Pause + setup</span>
+    <CopyButton text="sv_cheats 1; citadel_pause; status; citadel_active_lane 4" />
+  </div>
+  <code className="text-xs text-[#FF5C00] break-all">
+    sv_cheats 1; citadel_pause; status; citadel_active_lane 4
+  </code>
+  <p className="text-[11px] text-gray-500 mt-2">This pauses the game so your opponent can join.</p>
+</div>
 
                 <div className="bg-[#08080d] rounded-xl p-4">
-                  <div className="text-xs font-bold text-gray-300 mb-2">Step 3 — Post your connect code</div>
-                  <p className="text-[11px] text-gray-500 mb-3">
-                    From the <code className="text-gray-400">status</code> output, copy the long number in parentheses and submit it as the Match Code.
-                  </p>
-                  <img
-                    src="/console-steamid-example.png"
-                    alt="Console steamid example"
-                    className="w-full rounded-lg border border-[#1c1c28] mb-2"
-                  />
-                  <p className="text-[11px] text-gray-500">
-                    Example: copy <span className="text-[#FF5C00] font-mono">90289632610184204</span>
-                  </p>
-                </div>
+  <div className="text-xs font-bold text-gray-300 mb-2">Step 3 — Post your connect code</div>
+  <p className="text-[11px] text-gray-500 mb-3">
+    From the <code className="text-gray-400">status</code> output, copy your ID including the brackets.
+    <strong className="text-white"> The whole thing must be copied</strong>, like:
+  </p>
+  <code className="block text-xs text-[#FF5C00] font-mono bg-[#050508] rounded-lg px-3 py-2 mb-3">
+    [A:0:1234567890:12345]
+  </code>
+  <img
+    src="/console-steamid-example.png"
+    alt="Console steamid example"
+    className="w-full rounded-lg border border-[#1c1c28] mb-2"
+  />
+  <p className="text-[11px] text-gray-500">
+    Paste that as the Match Code below. Opponent will use it to connect.
+  </p>
+</div>
 
                 <div className="bg-[#08080d] rounded-xl p-4">
-                  <div className="text-xs font-bold text-gray-300 mb-1">Step 4 — Unpause</div>
-                  <p className="text-[11px] text-gray-500">
-                    When opponent is in, press <strong className="text-white">P</strong> to unpause and start.
-                  </p>
-                </div>
+                  <div className="bg-[#08080d] rounded-xl p-4">
+  <div className="text-xs font-bold text-gray-300 mb-1">Step 4 — Unpause</div>
+  <p className="text-[11px] text-gray-500">
+    You can tell your opponent is in when an <strong className="text-white">empty character portrait</strong> appears on the other team.
+    Then press <strong className="text-white">P</strong> to unpause and start the match.
+  </p>
+</div>
               </div>
             )}
           </div>

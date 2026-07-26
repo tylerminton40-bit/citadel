@@ -67,13 +67,12 @@ export default function MatchLive({
     })
   }
 
-  async function copyConnect() {
-    if (!code) return
-    const text = code.toLowerCase().startsWith("connect ") ? code : `connect ${code}`
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
+async function copyConnect() {
+  if (!code) return
+  await navigator.clipboard.writeText(code)
+  setCopied(true)
+  setTimeout(() => setCopied(false), 1500)
+}
 
   return (
     <div className="space-y-6">
@@ -93,7 +92,7 @@ export default function MatchLive({
               onClick={copyConnect}
               className="w-full py-2.5 rounded-xl text-sm bg-[#FF5C00]/15 text-[#FF5C00] hover:bg-[#FF5C00]/25 transition font-medium"
             >
-              {copied ? "Copied!" : "Copy connect CODE"}
+              {copied ? "Copied!" : "Copy CODE"}
             </button>
             {isCreator && isAccepted && (
               <div className="space-y-2 pt-2">
