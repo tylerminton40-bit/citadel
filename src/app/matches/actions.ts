@@ -96,20 +96,6 @@ export async function acceptMatch(matchId: string) {
     redirect("/matches?error=pending_with_player")
   }
 
-  // Dispute with this player?
-  const { data: disputeWithThem } = await supabase
-    .from("matches")
-    .select("id")
-    .eq("status", "disputed")
-    .or(
-      `and(creator_id.eq.${profile.id},opponent_id.eq.${otherId}),and(creator_id.eq.${otherId},opponent_id.eq.${profile.id})`
-    )
-    .limit(1)
-
-  if (disputeWithThem && disputeWithThem.length > 0) {
-    redirect("/matches?error=dispute_with_player")
-  }
-
   const needsTeam = ["2v2", "3v3", "4v4", "6v6"].includes(match.format)
   const sizeMap: Record<string, number> = { "2v2": 2, "3v3": 3, "4v4": 4, "6v6": 6 }
   let opponentTeamId = null
