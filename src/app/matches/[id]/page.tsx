@@ -202,7 +202,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   <div className="text-xs font-bold text-gray-300 mb-2">Step 3 — Post your connect code</div>
   <p className="text-[11px] text-gray-500 mb-3">
     After running the command above, look in console for the line with <code className="text-gray-400">steamid</code>.
-    Copy the long number in parentheses and submit it as the Match Code below.
+    Copy the long number and the brackets and submit it as the Match Code below.
     The copy button will format it as <code className="text-[#FF5C00]">connect YOURCODE</code>.
   </p>
   <img
@@ -211,7 +211,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     className="w-full rounded-lg border border-[#1c1c28] mb-2"
   />
   <p className="text-[11px] text-gray-500">
-    Example: copy <span className="text-[#FF5C00] font-mono">90289632610184204</span> (the number in parentheses)
+    Example: copy <span className="text-[#FF5C00] font-mono">[90289632610184204]</span> (the number and the brackets)
   </p>
 </div>
 
