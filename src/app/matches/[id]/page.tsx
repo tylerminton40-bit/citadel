@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar"
 import Link from "next/link"
 import { cancelMatch, acceptMatch, reportResult } from "../actions"
 import MatchLive from "@/components/MatchLive"
+import CopyButton from "@/components/CopyButton"
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
