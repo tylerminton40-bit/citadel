@@ -7,14 +7,14 @@ import { redirect } from "next/navigation"
 export async function createMatch(formData: FormData) {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
+  if (!steamId) redirect("/login?next=/matches/create")
 
   const format = formData.get("format") as string
   const bestOf = formData.get("best_of") as string
   const region = formData.get("region") as string
+  const ruleset = (formData.get("ruleset") as string) || "Street Brawl"
   const teamId = (formData.get("team_id") as string) || null
-const ruleset = (formData.get("ruleset") as string) || "Street Brawl"
-const map = ruleset.startsWith("Normal") ? "Normal" : "Street Brawl"
+  const map = ruleset.startsWith("Normal") ? "Normal" : "Street Brawl"
 
   const needsTeam = ["2v2", "3v3", "4v4", "6v6"].includes(format)
   const sizeMap: Record<string, number> = { "2v2": 2, "3v3": 3, "4v4": 4, "6v6": 6 }
@@ -30,17 +30,23 @@ const map = ruleset.startsWith("Normal") ? "Normal" : "Street Brawl"
     .eq("steam_id", steamId)
     .single()
 
-  if (!profile) redirect("/")
+  if (!profile) redirect("/login?next=/matches/create")
 
-  // Active match check
+  // Block only if they have a match they haven't reported yet
   const { data: existing } = await supabase
     .from("matches")
-    .select("id")
+    .select("id, creator_id, opponent_id, creator_report, opponent_report, status")
     .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
     .in("status", ["open", "accepted"])
-    .limit(1)
 
-  if (existing && existing.length > 0) {
+  const stillBusy = (existing || []).some((m) => {
+    if (m.status === "open") return true
+    if (m.creator_id === profile.id && !m.creator_report) return true
+    if (m.opponent_id === profile.id && !m.opponent_report) return true
+    return false
+  })
+
+  if (stillBusy) {
     redirect("/matches?error=already_in_match")
   }
 
@@ -51,7 +57,6 @@ const map = ruleset.startsWith("Normal") ? "Normal" : "Street Brawl"
       redirect("/matches/create?error=team_required")
     }
 
-    // Verify ownership/membership + correct size
     const { data: membership } = await supabase
       .from("team_members")
       .select("*, team:teams(*)")

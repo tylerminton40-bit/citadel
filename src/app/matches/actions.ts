@@ -7,52 +7,6 @@ import { revalidatePath } from "next/cache"
 import { createNotification } from "@/lib/notifications"
 import { bumpLadderEntry } from "@/lib/ladder"
 
-export async function disputeMatch(matchId: string) {
-  const cookieStore = await cookies()
-  const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("steam_id", steamId)
-    .single()
-
-  if (!profile) redirect("/")
-
-  const { data: match } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("id", matchId)
-    .single()
-
-  if (!match) redirect("/matches")
-
-  const isParticipant =
-    profile.id === match.creator_id || profile.id === match.opponent_id
-
-  if (!isParticipant) redirect(`/matches/${matchId}`)
-
-  // Only allowed while accepted (stuck / pending report)
-  if (match.status !== "accepted") {
-    redirect(`/matches/${matchId}`)
-  }
-
-  await supabase
-    .from("matches")
-    .update({ status: "disputed" })
-    .eq("id", matchId)
-
-  revalidatePath(`/matches/${matchId}`)
-  revalidatePath("/matches")
-  redirect(`/matches/${matchId}`)
-}
-
 export async function cancelMatch(matchId: string) {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
@@ -99,15 +53,21 @@ export async function acceptMatch(matchId: string) {
 
   if (!profile) redirect("/")
 
-  // Already in a match?
+  // Busy if open match, or accepted match you haven't reported yet
   const { data: existing } = await supabase
     .from("matches")
-    .select("id")
+    .select("id, creator_id, opponent_id, creator_report, opponent_report, status")
     .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
     .in("status", ["open", "accepted"])
-    .limit(1)
 
-  if (existing && existing.length > 0) {
+  const stillBusy = (existing || []).some((m) => {
+    if (m.status === "open") return true
+    if (m.creator_id === profile.id && !m.creator_report) return true
+    if (m.opponent_id === profile.id && !m.opponent_report) return true
+    return false
+  })
+
+  if (stillBusy) {
     redirect("/matches?error=already_in_match")
   }
 
@@ -119,6 +79,36 @@ export async function acceptMatch(matchId: string) {
     .single()
 
   if (!match) redirect("/matches")
+
+  const otherId = match.creator_id
+
+  // Pending match with this player?
+  const { data: pendingWithThem } = await supabase
+    .from("matches")
+    .select("id")
+    .in("status", ["open", "accepted"])
+    .or(
+      `and(creator_id.eq.${profile.id},opponent_id.eq.${otherId}),and(creator_id.eq.${otherId},opponent_id.eq.${profile.id})`
+    )
+    .limit(1)
+
+  if (pendingWithThem && pendingWithThem.length > 0) {
+    redirect("/matches?error=pending_with_player")
+  }
+
+  // Dispute with this player?
+  const { data: disputeWithThem } = await supabase
+    .from("matches")
+    .select("id")
+    .eq("status", "disputed")
+    .or(
+      `and(creator_id.eq.${profile.id},opponent_id.eq.${otherId}),and(creator_id.eq.${otherId},opponent_id.eq.${profile.id})`
+    )
+    .limit(1)
+
+  if (disputeWithThem && disputeWithThem.length > 0) {
+    redirect("/matches?error=dispute_with_player")
+  }
 
   const needsTeam = ["2v2", "3v3", "4v4", "6v6"].includes(match.format)
   const sizeMap: Record<string, number> = { "2v2": 2, "3v3": 3, "4v4": 4, "6v6": 6 }
@@ -283,7 +273,6 @@ export async function reportResult(matchId: string, formData: FormData) {
     })
   }
 
-  // Both reported
   if (updated.creator_report && updated.opponent_report) {
     if (updated.creator_report === updated.opponent_report) {
       const winnerId =
@@ -300,7 +289,6 @@ export async function reportResult(matchId: string, formData: FormData) {
         })
         .eq("id", matchId)
 
-      // Player XP
       if (winnerId) {
         await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
         await supabase.rpc("increment_wins", { profile_id: winnerId })
@@ -309,10 +297,7 @@ export async function reportResult(matchId: string, formData: FormData) {
         await supabase.rpc("increment_xp", { profile_id: loserId, amount: -20 })
         await supabase.rpc("increment_losses", { profile_id: loserId })
       }
-	  
-	  
 
-      // Team W/L (for 2v2–6v6)
       const winnerTeamId =
         updated.creator_report === "creator"
           ? updated.creator_team_id
@@ -321,32 +306,6 @@ export async function reportResult(matchId: string, formData: FormData) {
         updated.creator_report === "creator"
           ? updated.opponent_team_id
           : updated.creator_team_id
-		  
-		  // Give every team member personal W/L (not just the captain who clicked)
-async function applyTeamMemberRecords(teamId: string | null, won: boolean) {
-  if (!teamId) return
-  const { data: members } = await supabase
-    .from("team_members")
-    .select("profile_id")
-    .eq("team_id", teamId)
-
-  if (!members) return
-
-  for (const m of members) {
-    // Skip the captain already counted above if they're winnerId/loserId
-    if (m.profile_id === winnerId || m.profile_id === loserId) continue
-    if (won) {
-      await supabase.rpc("increment_wins", { profile_id: m.profile_id })
-      await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: 30 })
-    } else {
-      await supabase.rpc("increment_losses", { profile_id: m.profile_id })
-      await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: -20 })
-    }
-  }
-}
-
-if (winnerTeamId) await applyTeamMemberRecords(winnerTeamId, true)
-if (loserTeamId) await applyTeamMemberRecords(loserTeamId, false)
 
       if (winnerTeamId) {
         const { data: wt } = await supabase.from("teams").select("wins").eq("id", winnerTeamId).single()
@@ -360,8 +319,31 @@ if (loserTeamId) await applyTeamMemberRecords(loserTeamId, false)
           await supabase.from("teams").update({ losses: (lt.losses || 0) + 1 }).eq("id", loserTeamId)
         }
       }
-	  
-      // Ladder tracking
+
+      async function applyTeamMemberRecords(teamId: string | null, won: boolean) {
+        if (!teamId) return
+        const { data: members } = await supabase
+          .from("team_members")
+          .select("profile_id")
+          .eq("team_id", teamId)
+
+        if (!members) return
+
+        for (const m of members) {
+          if (m.profile_id === winnerId || m.profile_id === loserId) continue
+          if (won) {
+            await supabase.rpc("increment_wins", { profile_id: m.profile_id })
+            await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: 30 })
+          } else {
+            await supabase.rpc("increment_losses", { profile_id: m.profile_id })
+            await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: -20 })
+          }
+        }
+      }
+
+      await applyTeamMemberRecords(winnerTeamId, true)
+      await applyTeamMemberRecords(loserTeamId, false)
+
       if (updated.format === "1v1") {
         if (winnerId) {
           await bumpLadderEntry({ mode: "1v1", entityType: "player", entityId: winnerId, won: true })
@@ -378,12 +360,6 @@ if (loserTeamId) await applyTeamMemberRecords(loserTeamId, false)
         }
       }
 
-
-
-
-
-
-      // Daily quests
       const today = new Date().toISOString().slice(0, 10)
       async function bumpQuest(userId: string, key: string) {
         const { data: quest } = await supabase
@@ -427,4 +403,46 @@ if (loserTeamId) await applyTeamMemberRecords(loserTeamId, false)
   revalidatePath("/quests")
   revalidatePath("/teams")
   revalidatePath("/ladders")
+}
+
+export async function disputeMatch(matchId: string) {
+  const cookieStore = await cookies()
+  const steamId = cookieStore.get("citadel_steam_id")?.value
+  if (!steamId) redirect("/")
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("steam_id", steamId)
+    .single()
+
+  if (!profile) redirect("/")
+
+  const { data: match } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("id", matchId)
+    .single()
+
+  if (!match) redirect("/matches")
+
+  const isParticipant =
+    profile.id === match.creator_id || profile.id === match.opponent_id
+
+  if (!isParticipant) redirect(`/matches/${matchId}`)
+  if (match.status !== "accepted") redirect(`/matches/${matchId}`)
+
+  await supabase
+    .from("matches")
+    .update({ status: "disputed" })
+    .eq("id", matchId)
+
+  revalidatePath(`/matches/${matchId}`)
+  revalidatePath("/matches")
+  redirect(`/matches/${matchId}`)
 }
