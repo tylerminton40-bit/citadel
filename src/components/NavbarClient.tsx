@@ -35,6 +35,7 @@ const links = [
   { href: "/quests", label: "Quests" },
   { href: "/tickets", label: "Tickets" },
   { href: "/rules", label: "Rules" },
+  { href: "/ladders", label: "Ladders" },
 ]
 
   return (

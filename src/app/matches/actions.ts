@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { createNotification } from "@/lib/notifications"
+import { bumpLadderEntry } from "@/lib/ladder"
 
 export async function cancelMatch(matchId: string) {
   const cookieStore = await cookies()
@@ -285,6 +286,23 @@ export async function reportResult(matchId: string, formData: FormData) {
           await supabase.from("teams").update({ losses: (lt.losses || 0) + 1 }).eq("id", loserTeamId)
         }
       }
+	  
+	  // Ladder tracking
+if (updated.format === "1v1") {
+  if (winnerId) {
+    await bumpLadderEntry({ mode: "1v1", entityType: "player", entityId: winnerId, won: true })
+  }
+  if (loserId) {
+    await bumpLadderEntry({ mode: "1v1", entityType: "player", entityId: loserId, won: false })
+  }
+} else if (["2v2", "3v3", "4v4", "6v6"].includes(updated.format)) {
+  if (winnerTeamId) {
+    await bumpLadderEntry({ mode: updated.format, entityType: "team", entityId: winnerTeamId, won: true })
+  }
+  if (loserTeamId) {
+    await bumpLadderEntry({ mode: updated.format, entityType: "team", entityId: loserTeamId, won: false })
+  }
+}
 
       // Daily quests
       const today = new Date().toISOString().slice(0, 10)
