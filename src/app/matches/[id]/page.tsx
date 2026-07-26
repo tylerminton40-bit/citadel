@@ -194,7 +194,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               <code className="text-xs text-[#FF5C00] break-all">
                 sv_cheats 1; citadel_pause; status; citadel_idol_duration_until_decay 1; citadel_idol_decay_duration 1; citadel_koth_spawn_initial_delay 9999999; citadel_active_lane 4
               </code>
-              <p className="text-[11px] text-gray-500 mt-2">This pauses the game so your opponent can join.</p>
+              <p className="text-[11px] text-gray-500 mt-2">This pauses the game so your opponent can join. Choose Hidden King and the character you are playing.</p>
             </div>
 
       {/* Step 3 */}
@@ -211,7 +211,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     className="w-full rounded-lg border border-[#1c1c28] mb-2"
   />
   <p className="text-[11px] text-gray-500">
-    Example: copy <span className="text-[#FF5C00] font-mono">[90289632610184204]</span> (the number and the brackets)
+    Example: copy <span className="text-[#FF5C00] font-mono">[A:1:9028963261:01842]</span> (the number and the brackets)
   </p>
 </div>
 
@@ -219,7 +219,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             <div className="bg-[#08080d] rounded-xl p-4">
               <div className="text-xs font-bold text-gray-300 mb-1">Step 4 — Unpause</div>
               <p className="text-[11px] text-gray-500">
-                When opponent is in, press <strong className="text-white">P</strong> to unpause and start the match.
+                When opponent is in, press <strong className="text-white">P</strong> to unpause and start the match. You will see an empty character portrait on the other team when they have joined.
               </p>
             </div>
           </div>
