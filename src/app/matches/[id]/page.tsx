@@ -50,7 +50,7 @@ if (match?.creator_team_id) {
     .from("team_members")
     .select("profile:profiles(steam_name, avatar_url, xp)")
     .eq("team_id", match.creator_team_id)
-  creatorMembers = data || []
+  creatorMembers = (data as TeamMember[]) || []
 }
 
 if (match?.opponent_team_id) {
@@ -58,7 +58,7 @@ if (match?.opponent_team_id) {
     .from("team_members")
     .select("profile:profiles(steam_name, avatar_url, xp)")
     .eq("team_id", match.opponent_team_id)
-  opponentMembers = data || []
+  opponentMembers = (data as TeamMember[]) || []
 }
 
   if (!match) {
