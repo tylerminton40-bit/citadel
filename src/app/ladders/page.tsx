@@ -27,7 +27,15 @@ export default async function LaddersPage({
 
   const season = await getCurrentSeason()
 
-  let entries: any[] = []
+  type LadderEntry = {
+  id: string
+  entity_type: string
+  entity_id: string
+  wins: number
+  losses: number
+}
+
+let entries: LadderEntry[] = []
 
   if (season) {
     const { data } = await supabase
@@ -46,8 +54,11 @@ export default async function LaddersPage({
   const playerIds = entries.filter((e) => e.entity_type === "player").map((e) => e.entity_id)
   const teamIds = entries.filter((e) => e.entity_type === "team").map((e) => e.entity_id)
 
-  const profilesMap: Record<string, any> = {}
-  const teamsMap: Record<string, any> = {}
+  type ProfileInfo = { id: string; steam_name: string; avatar_url: string | null }
+type TeamInfo = { id: string; name: string; tag: string | null; wins: number; losses: number }
+
+const profilesMap: Record<string, ProfileInfo> = {}
+const teamsMap: Record<string, TeamInfo> = {}
 
   if (playerIds.length > 0) {
     const { data } = await supabase

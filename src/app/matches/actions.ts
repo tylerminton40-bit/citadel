@@ -287,22 +287,22 @@ export async function reportResult(matchId: string, formData: FormData) {
         }
       }
 	  
-	  // Ladder tracking
-if (updated.format === "1v1") {
-  if (winnerId) {
-    await bumpLadderEntry({ mode: "1v1", entityType: "player", entityId: winnerId, won: true })
-  }
-  if (loserId) {
-    await bumpLadderEntry({ mode: "1v1", entityType: "player", entityId: loserId, won: false })
-  }
-} else if (["2v2", "3v3", "4v4", "6v6"].includes(updated.format)) {
-  if (winnerTeamId) {
-    await bumpLadderEntry({ mode: updated.format, entityType: "team", entityId: winnerTeamId, won: true })
-  }
-  if (loserTeamId) {
-    await bumpLadderEntry({ mode: updated.format, entityType: "team", entityId: loserTeamId, won: false })
-  }
-}
+      // Ladder tracking
+      if (updated.format === "1v1") {
+        if (winnerId) {
+          await bumpLadderEntry({ mode: "1v1", entityType: "player", entityId: winnerId, won: true })
+        }
+        if (loserId) {
+          await bumpLadderEntry({ mode: "1v1", entityType: "player", entityId: loserId, won: false })
+        }
+      } else if (["2v2", "3v3", "4v4", "6v6"].includes(updated.format)) {
+        if (winnerTeamId) {
+          await bumpLadderEntry({ mode: updated.format, entityType: "team", entityId: winnerTeamId, won: true })
+        }
+        if (loserTeamId) {
+          await bumpLadderEntry({ mode: updated.format, entityType: "team", entityId: loserTeamId, won: false })
+        }
+      }
 
       // Daily quests
       const today = new Date().toISOString().slice(0, 10)
@@ -347,4 +347,5 @@ if (updated.format === "1v1") {
   revalidatePath("/profile")
   revalidatePath("/quests")
   revalidatePath("/teams")
+  revalidatePath("/ladders")
 }
