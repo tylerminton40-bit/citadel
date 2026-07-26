@@ -33,6 +33,25 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     `)
     .eq("id", id)
     .single()
+	
+	let creatorMembers: any[] = []
+let opponentMembers: any[] = []
+
+if (match?.creator_team_id) {
+  const { data } = await supabase
+    .from("team_members")
+    .select("profile:profiles(steam_name, avatar_url, xp)")
+    .eq("team_id", match.creator_team_id)
+  creatorMembers = data || []
+}
+
+if (match?.opponent_team_id) {
+  const { data } = await supabase
+    .from("team_members")
+    .select("profile:profiles(steam_name, avatar_url, xp)")
+    .eq("team_id", match.opponent_team_id)
+  opponentMembers = data || []
+}
 
   if (!match) {
     return (
@@ -84,51 +103,111 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Head to Head - stacks on mobile */}
-        <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl sm:rounded-3xl p-5 sm:p-8 mb-6 sm:mb-8">
-          <div className="grid grid-cols-3 items-center gap-2 sm:gap-6">
-            {/* Host */}
-            <div className="text-center">
-              {match.creator?.avatar_url ? (
-                <img
-                  src={match.creator.avatar_url}
-                  alt=""
-                  className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-[#FF5C00]"
-                />
-              ) : (
-                <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 bg-[#1c1c28]" />
-              )}
-              <div className="font-bold text-sm sm:text-lg truncate px-1">{match.creator?.steam_name || "Unknown"}</div>
-              <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Host</div>
-              <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium">Hidden King</div>
-            </div>
-
-            {/* VS */}
-            <div className="text-center">
-              <div className="text-2xl sm:text-4xl font-black text-[#FF5C00] mb-1 sm:mb-2">VS</div>
-              <div className="text-[10px] sm:text-sm text-gray-400">{match.map}</div>
-              <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">{match.best_of}</div>
-            </div>
-
-            {/* Challenger */}
-            <div className="text-center">
-              {match.opponent?.avatar_url ? (
-                <img
-                  src={match.opponent.avatar_url}
-                  alt=""
-                  className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-purple-500"
-                />
-              ) : (
-                <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-dashed border-gray-600 flex items-center justify-center text-gray-500 text-[10px] sm:text-sm">
-                  Wait
-                </div>
-              )}
-              <div className="font-bold text-sm sm:text-lg truncate px-1">{match.opponent?.steam_name || "Waiting..."}</div>
-              <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Challenger</div>
-              <div className="text-[10px] sm:text-xs text-purple-400 font-medium">Archmother</div>
-            </div>
+{/* Head to Head */}
+<div className="bg-[#111118] border border-[#1c1c28] rounded-2xl sm:rounded-3xl p-5 sm:p-8 mb-6 sm:mb-8">
+  <div className="grid grid-cols-3 items-start gap-2 sm:gap-6">
+    {/* Host side */}
+    <div className="text-center">
+      {match.creator_team ? (
+        <>
+          <div className="font-bold text-sm sm:text-lg text-[#FF5C00] mb-1">
+            {match.creator_team.tag ? `[${match.creator_team.tag}] ` : ""}{match.creator_team.name}
           </div>
-        </div>
+          <div className="text-xs text-gray-400 mb-3">
+            <span className="text-emerald-400">{match.creator_team.wins}W</span>
+            {" / "}
+            <span className="text-red-400">{match.creator_team.losses}L</span>
+          </div>
+          <div className="space-y-2">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {creatorMembers.map((m: any, i: number) => (
+              <div key={i} className="flex items-center gap-2 justify-center">
+                {m.profile?.avatar_url && (
+                  <img src={m.profile.avatar_url} alt="" className="w-7 h-7 rounded-full" />
+                )}
+                <div className="text-left min-w-0">
+                  <div className="text-xs font-medium truncate">{m.profile?.steam_name}</div>
+                  <div className="text-[10px] text-gray-500">{m.profile?.xp || 0} XP</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium mt-2">Host • Hidden King</div>
+        </>
+      ) : (
+        <>
+          {match.creator?.avatar_url ? (
+            <img src={match.creator.avatar_url} alt="" className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-[#FF5C00]" />
+          ) : (
+            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 bg-[#1c1c28]" />
+          )}
+          <div className="font-bold text-sm sm:text-lg truncate px-1">{match.creator?.steam_name || "Unknown"}</div>
+          <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Host</div>
+          <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium">Hidden King</div>
+        </>
+      )}
+    </div>
+
+    {/* VS */}
+    <div className="text-center pt-4 sm:pt-8">
+      <div className="text-2xl sm:text-4xl font-black text-[#FF5C00] mb-1 sm:mb-2">VS</div>
+      <div className="text-[10px] sm:text-sm text-gray-400">{match.format}</div>
+      <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">{match.best_of}</div>
+      <div className="text-[10px] sm:text-xs text-gray-500">{match.ruleset}</div>
+    </div>
+
+    {/* Challenger side */}
+    <div className="text-center">
+      {match.opponent_team ? (
+        <>
+          <div className="font-bold text-sm sm:text-lg text-purple-400 mb-1">
+            {match.opponent_team.tag ? `[${match.opponent_team.tag}] ` : ""}{match.opponent_team.name}
+          </div>
+          <div className="text-xs text-gray-400 mb-3">
+            <span className="text-emerald-400">{match.opponent_team.wins}W</span>
+            {" / "}
+            <span className="text-red-400">{match.opponent_team.losses}L</span>
+          </div>
+          <div className="space-y-2">
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            {opponentMembers.map((m: any, i: number) => (
+              <div key={i} className="flex items-center gap-2 justify-center">
+                {m.profile?.avatar_url && (
+                  <img src={m.profile.avatar_url} alt="" className="w-7 h-7 rounded-full" />
+                )}
+                <div className="text-left min-w-0">
+                  <div className="text-xs font-medium truncate">{m.profile?.steam_name}</div>
+                  <div className="text-[10px] text-gray-500">{m.profile?.xp || 0} XP</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="text-[10px] sm:text-xs text-purple-400 font-medium mt-2">Challenger • Archmother</div>
+        </>
+      ) : match.opponent ? (
+        <>
+          {match.opponent.avatar_url ? (
+            <img src={match.opponent.avatar_url} alt="" className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-purple-500" />
+          ) : (
+            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 bg-[#1c1c28]" />
+          )}
+          <div className="font-bold text-sm sm:text-lg truncate px-1">{match.opponent.steam_name}</div>
+          <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Challenger</div>
+          <div className="text-[10px] sm:text-xs text-purple-400 font-medium">Archmother</div>
+        </>
+      ) : (
+        <>
+          <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-dashed border-gray-600 flex items-center justify-center text-gray-500 text-[10px] sm:text-sm">
+            Wait
+          </div>
+          <div className="font-bold text-sm sm:text-lg truncate px-1">Waiting...</div>
+          <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Challenger</div>
+          <div className="text-[10px] sm:text-xs text-purple-400 font-medium">Archmother</div>
+        </>
+      )}
+    </div>
+  </div>
+</div>
 
         {/* Match Info */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
