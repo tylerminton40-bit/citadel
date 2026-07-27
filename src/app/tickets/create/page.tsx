@@ -47,19 +47,21 @@ export default async function CreateTicketPage({
     .order("created_at", { ascending: false })
     .limit(20)
 
-  // Scrims for teams this player is on
   const { data: memberships } = await supabase
     .from("team_members")
     .select("team_id")
     .eq("profile_id", profile.id)
 
   const teamIds = (memberships || []).map((m) => m.team_id)
-  let scrims: {
+
+  type ScrimRow = {
     id: string
     status: string
-    creator_team?: { name: string; tag: string | null } | null
-    opponent_team?: { name: string; tag: string | null } | null
-  }[] = []
+    creator_team: { name: string; tag: string | null } | null
+    opponent_team: { name: string; tag: string | null } | null
+  }
+
+  let scrims: ScrimRow[] = []
 
   if (teamIds.length > 0) {
     const { data } = await supabase
@@ -86,8 +88,12 @@ export default async function CreateTicketPage({
     }))
   }
 
-  const preselectScrim = sp.scrim || ""
-  const preselectMatch = sp.match || ""
+  // Single list: match:uuid or scrim:uuid
+  const preselect = sp.scrim
+    ? `scrim:${sp.scrim}`
+    : sp.match
+    ? `match:${sp.match}`
+    : ""
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
@@ -95,7 +101,7 @@ export default async function CreateTicketPage({
       <main className="max-w-xl mx-auto px-3 sm:px-4 py-8 sm:py-12">
         <h1 className="text-3xl font-bold mb-2">New Ticket</h1>
         <p className="text-gray-400 text-sm mb-8">
-          Link a match or scrim if this is a dispute. Upload at least 1 screenshot or video.
+          Pick a related match or scrim if this is a dispute. Upload at least 1 screenshot or video.
         </p>
 
         <form
@@ -103,33 +109,22 @@ export default async function CreateTicketPage({
           className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 space-y-6"
         >
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Related Match</label>
+            <label className="block text-sm text-gray-400 mb-2">Related match or scrim</label>
             <select
-              name="match_id"
-              defaultValue={preselectMatch}
+              name="related"
+              defaultValue={preselect}
               className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
             >
-              <option value="">No specific match</option>
+              <option value="">None</option>
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {matches?.map((m: any) => (
-                <option key={m.id} value={m.id}>
+                <option key={`match-${m.id}`} value={`match:${m.id}`}>
                   MATCH · {m.format} {m.best_of} · {m.status} ·{" "}
                   {m.creator?.steam_name || "?"} vs {m.opponent?.steam_name || "?"}
                 </option>
               ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">Related Scrim</label>
-            <select
-              name="scrim_id"
-              defaultValue={preselectScrim}
-              className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
-            >
-              <option value="">No specific scrim</option>
               {scrims.map((s) => (
-                <option key={s.id} value={s.id}>
+                <option key={`scrim-${s.id}`} value={`scrim:${s.id}`}>
                   SCRIM · {s.status} ·{" "}
                   {s.creator_team?.tag ? `[${s.creator_team.tag}] ` : ""}
                   {s.creator_team?.name || "?"} vs{" "}
