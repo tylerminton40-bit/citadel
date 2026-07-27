@@ -34,6 +34,17 @@ function formatWhen(iso: string | null) {
   return "ASAP"
 }
 
+function statusStyle(status: string) {
+  if (status === "open") return "bg-yellow-500/15 text-yellow-400"
+  if (status === "accepted" || status === "choosing")
+    return "bg-emerald-500/15 text-emerald-400"
+  if (status === "drafting") return "bg-purple-500/15 text-purple-300"
+  if (status === "live") return "bg-[#FF5C00]/15 text-[#FF5C00]"
+  if (status === "completed") return "bg-blue-500/15 text-blue-400"
+  if (status === "disputed") return "bg-red-500/15 text-red-400"
+  return "bg-gray-500/15 text-gray-400"
+}
+
 export default function ScrimList({
   initialScrims,
   currentTab,
@@ -44,7 +55,11 @@ export default function ScrimList({
   if (!initialScrims?.length) {
     return (
       <div className="text-center py-20 text-gray-500">
-        {currentTab === "open" ? "No open scrims right now." : "No scrims yet."}
+        {currentTab === "open"
+          ? "No open scrims right now."
+          : currentTab === "yours"
+          ? "No scrims for your teams yet."
+          : "Nothing here yet."}
       </div>
     )
   }
@@ -74,6 +89,9 @@ export default function ScrimList({
                 <div className="font-medium truncate">
                   {s.creator_team?.tag ? `[${s.creator_team.tag}] ` : ""}
                   {s.creator_team?.name || "Team"}
+                  {s.opponent_team
+                    ? ` vs ${s.opponent_team.tag ? `[${s.opponent_team.tag}] ` : ""}${s.opponent_team.name}`
+                    : ""}
                 </div>
                 <div className="text-xs text-gray-500">
                   {formatWhen(s.scheduled_at)}
@@ -81,7 +99,11 @@ export default function ScrimList({
                 </div>
               </div>
             </div>
-            <span className="text-[10px] px-2.5 py-1 rounded-full bg-yellow-500/15 text-yellow-400 font-medium shrink-0">
+            <span
+              className={`text-[10px] px-2.5 py-1 rounded-full font-medium shrink-0 ${statusStyle(
+                s.status
+              )}`}
+            >
               {s.status}
             </span>
           </div>

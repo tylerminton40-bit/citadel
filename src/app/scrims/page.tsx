@@ -76,6 +76,7 @@ export default async function ScrimsPage({
     members = (data as unknown as MemberRow[]) || []
   }
 
+  // Open scrims
   const { data: openScrims } = await supabase
     .from("scrims")
     .select(`
@@ -89,6 +90,45 @@ export default async function ScrimsPage({
     .order("created_at", { ascending: false })
     .limit(15)
 
+  // Your scrims — any team you're on, all phases
+  let yourScrims: unknown[] = []
+  {
+    const { data: allMemberships } = await supabase
+      .from("team_members")
+      .select("team_id")
+      .eq("profile_id", profile.id)
+
+    const teamIds = (allMemberships || []).map((m) => m.team_id)
+
+    if (teamIds.length > 0) {
+      const { data } = await supabase
+        .from("scrims")
+        .select(`
+          *,
+          creator_team:teams!scrims_creator_team_id_fkey(id, name, tag, avatar_url, wins, losses),
+          opponent_team:teams!scrims_opponent_team_id_fkey(id, name, tag, avatar_url)
+        `)
+        .or(
+          teamIds
+            .map((tid) => `creator_team_id.eq.${tid},opponent_team_id.eq.${tid}`)
+            .join(",")
+        )
+        .in("status", [
+          "open",
+          "accepted",
+          "choosing",
+          "drafting",
+          "live",
+          "completed",
+          "disputed",
+        ])
+        .order("created_at", { ascending: false })
+        .limit(40)
+
+      yourScrims = data || []
+    }
+  }
+
   const wins = mainTeam?.wins || 0
   const losses = mainTeam?.losses || 0
   const games = wins + losses
@@ -99,7 +139,6 @@ export default async function ScrimsPage({
       <Navbar />
 
       <main className="max-w-5xl mx-auto px-3 sm:px-4 py-8 sm:py-12">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF5C00]/10 border border-[#FF5C00]/30 text-[#FF5C00] text-[10px] font-bold tracking-widest uppercase mb-3">
@@ -126,7 +165,6 @@ export default async function ScrimsPage({
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
           {[
             { id: "hub", label: "Hub" },
@@ -149,10 +187,8 @@ export default async function ScrimsPage({
           ))}
         </div>
 
-        {/* HUB */}
         {currentTab === "hub" && (
           <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
-            {/* Your team card */}
             <div className="lg:col-span-2 bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 sm:p-6">
               {mainTeam ? (
                 <>
@@ -173,7 +209,9 @@ export default async function ScrimsPage({
                         {mainTeam.tag ? `[${mainTeam.tag}] ` : ""}
                         {mainTeam.name}
                       </div>
-                      <div className="text-xs text-[#FF5C00] font-medium mt-0.5">Scrim Team · 6v6</div>
+                      <div className="text-xs text-[#FF5C00] font-medium mt-0.5">
+                        Scrim Team · 6v6
+                      </div>
                     </div>
                   </div>
 
@@ -200,15 +238,23 @@ export default async function ScrimsPage({
                         className="flex items-center gap-3 p-2.5 rounded-xl bg-[#08080d]"
                       >
                         {m.profile?.avatar_url ? (
-                          <img src={m.profile.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                          <img
+                            src={m.profile.avatar_url}
+                            alt=""
+                            className="w-8 h-8 rounded-full"
+                          />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-[#1c1c28]" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{m.profile?.steam_name}</div>
+                          <div className="text-sm font-medium truncate">
+                            {m.profile?.steam_name}
+                          </div>
                           <div className="text-[10px] text-gray-500">{m.role}</div>
                         </div>
-                        <div className="text-xs text-gray-500">{m.profile?.xp || 0} XP</div>
+                        <div className="text-xs text-gray-500">
+                          {m.profile?.xp || 0} XP
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -217,23 +263,28 @@ export default async function ScrimsPage({
                 <div className="text-center py-10">
                   <div className="text-lg font-bold mb-2">No scrim team yet</div>
                   <p className="text-sm text-gray-400 mb-5">
-                    Create a team on Teams and check <strong className="text-white">Scrim team</strong>.
+                    Create a team on Teams and check{" "}
+                    <strong className="text-white">Scrim team</strong>.
                   </p>
-                  <Link href="/teams/create" className="btn-primary px-6 py-2.5 rounded-xl text-sm inline-block">
+                  <Link
+                    href="/teams/create"
+                    className="btn-primary px-6 py-2.5 rounded-xl text-sm inline-block"
+                  >
                     Create Team
                   </Link>
                 </div>
               )}
             </div>
 
-            {/* Side actions */}
             <div className="space-y-4">
               <Link
                 href="/scrims/create"
                 className="block bg-gradient-to-br from-[#FF5C00]/20 to-[#FF8A00]/5 border border-[#FF5C00]/40 rounded-2xl p-5 hover:border-[#FF5C00] transition"
               >
                 <div className="text-lg font-bold mb-1">Post a Scrim</div>
-                <div className="text-xs text-gray-400">Open or private · schedule a time · live draft</div>
+                <div className="text-xs text-gray-400">
+                  Open or private · schedule · live draft
+                </div>
               </Link>
 
               <Link
@@ -245,21 +296,24 @@ export default async function ScrimsPage({
               </Link>
 
               <Link
-                href="/scrims?tab=drafts"
+                href="/scrims?tab=yours"
                 className="block bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 hover:border-[#FF5C00]/40 transition"
               >
-                <div className="text-lg font-bold mb-1">Draft Only</div>
-                <div className="text-xs text-gray-400">No record · practice picks & bans</div>
+                <div className="text-lg font-bold mb-1">Your Scrims</div>
+                <div className="text-xs text-gray-400">
+                  Accepted, drafting, live — whole team can open
+                </div>
               </Link>
 
               <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
-                <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">Season finale</div>
+                <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+                  Season finale
+                </div>
                 <div className="font-bold text-[#FF5C00]">Citadel Apex</div>
                 <div className="text-xs text-gray-400 mt-1">Top 16 scrim teams each month</div>
               </div>
             </div>
 
-            {/* Open scrims preview */}
             <div className="lg:col-span-3 bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold">Open Scrims</h2>
@@ -279,18 +333,21 @@ export default async function ScrimsPage({
         )}
 
         {currentTab === "yours" && (
-          <div className="text-center py-16 text-gray-500">
-            Your active and past scrims will show here after you post or accept one.
-          </div>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          <ScrimList initialScrims={yourScrims as any} currentTab="yours" />
         )}
 
         {currentTab === "drafts" && (
           <div className="text-center py-16">
             <p className="text-gray-400 mb-2 font-medium">Draft Only</p>
             <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-              Invite someone to draft. Does <strong className="text-white">not</strong> affect team record or ladder.
+              Invite someone to draft. Does <strong className="text-white">not</strong> affect
+              team record or ladder.
             </p>
-            <Link href="/scrims/draft-only" className="btn-primary px-6 py-2.5 rounded-xl text-sm inline-block">
+            <Link
+              href="/scrims/draft-only"
+              className="btn-primary px-6 py-2.5 rounded-xl text-sm inline-block"
+            >
               Start Draft Only
             </Link>
           </div>
