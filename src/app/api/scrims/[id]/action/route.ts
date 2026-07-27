@@ -3,18 +3,6 @@ import { createClient } from "@supabase/supabase-js"
 import { NextRequest, NextResponse } from "next/server"
 import { DRAFT_STEPS, type DraftState } from "@/lib/deadlock-heroes"
 
-async function getProfile(supabase: ReturnType<typeof createClient>) {
-  const cookieStore = await cookies()
-  const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) return null
-  const { data } = await supabase
-    .from("profiles")
-    .select("id, steam_name")
-    .eq("steam_id", steamId)
-    .single()
-  return data
-}
-
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -28,7 +16,16 @@ export async function POST(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const profile = await getProfile(supabase)
+  const cookieStore = await cookies()
+  const steamId = cookieStore.get("citadel_steam_id")?.value
+  if (!steamId) return NextResponse.json({ error: "auth" }, { status: 401 })
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, steam_name")
+    .eq("steam_id", steamId)
+    .single()
+
   if (!profile) return NextResponse.json({ error: "auth" }, { status: 401 })
 
   const { data: scrim } = await supabase.from("scrims").select("*").eq("id", id).single()
