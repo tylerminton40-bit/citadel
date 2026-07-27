@@ -223,11 +223,25 @@ async function applyTeamMemberRecords(
   for (const m of list) {
     if (skipIds.includes(m.profile_id)) continue
     if (won) {
-      await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: 30 })
-      await supabase.rpc("increment_wins", { profile_id: m.profile_id })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.rpc as any)("increment_xp", {
+        profile_id: m.profile_id,
+        amount: 30,
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.rpc as any)("increment_wins", {
+        profile_id: m.profile_id,
+      })
     } else {
-      await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: -20 })
-      await supabase.rpc("increment_losses", { profile_id: m.profile_id })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.rpc as any)("increment_xp", {
+        profile_id: m.profile_id,
+        amount: -20,
+      })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.rpc as any)("increment_losses", {
+        profile_id: m.profile_id,
+      })
     }
   }
 }
