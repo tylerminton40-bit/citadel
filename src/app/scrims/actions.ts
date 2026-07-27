@@ -163,3 +163,93 @@ export async function acceptScrim(scrimId: string, formData: FormData) {
   revalidatePath(`/scrims/${scrimId}`)
   redirect(`/scrims/${scrimId}`)
 }
+
+export async function setCaptainReady(scrimId: string) {
+  const { supabase, profile } = await getProfile()
+
+  const { data: scrim } = await supabase
+    .from("scrims")
+    .select("*")
+    .eq("id", scrimId)
+    .eq("status", "accepted")
+    .single()
+
+  if (!scrim) redirect(`/scrims/${scrimId}`)
+
+  const isCreator = profile.id === scrim.creator_id
+  const isOpponent = profile.id === scrim.opponent_captain_id
+  if (!isCreator && !isOpponent) redirect(`/scrims/${scrimId}`)
+
+  const patch = isCreator
+    ? { creator_ready: true }
+    : { opponent_ready: true }
+
+  await supabase.from("scrims").update(patch).eq("id", scrimId)
+
+  const { data: updated } = await supabase
+    .from("scrims")
+    .select("*")
+    .eq("id", scrimId)
+    .single()
+
+  // Both ready → move to choosing host / first ban (opponent captain chooses)
+  if (updated?.creator_ready && updated?.opponent_ready) {
+    await supabase
+      .from("scrims")
+      .update({ status: "choosing" })
+      .eq("id", scrimId)
+  }
+
+  revalidatePath(`/scrims/${scrimId}`)
+  redirect(`/scrims/${scrimId}`)
+}
+
+export async function chooseHostOrFirstBan(scrimId: string, formData: FormData) {
+  const { supabase, profile } = await getProfile()
+  const choice = formData.get("choice") as string // "host" | "first_ban"
+
+  const { data: scrim } = await supabase
+    .from("scrims")
+    .select("*")
+    .eq("id", scrimId)
+    .eq("status", "choosing")
+    .single()
+
+  if (!scrim) redirect(`/scrims/${scrimId}`)
+
+  // Accepting captain chooses
+  if (profile.id !== scrim.opponent_captain_id) {
+    redirect(`/scrims/${scrimId}`)
+  }
+
+  let host_team_id = scrim.creator_team_id
+  let first_ban_team_id = scrim.opponent_team_id
+
+  if (choice === "host") {
+    host_team_id = scrim.opponent_team_id
+    first_ban_team_id = scrim.creator_team_id
+  } else {
+    // first_ban
+    host_team_id = scrim.creator_team_id
+    first_ban_team_id = scrim.opponent_team_id
+  }
+
+  await supabase
+    .from("scrims")
+    .update({
+      host_team_id,
+      first_ban_team_id,
+      status: "drafting",
+      draft_state: {
+        step: 0,
+        bans: [],
+        picks: [],
+        phase: "ban",
+        turn_team_id: first_ban_team_id,
+      },
+    })
+    .eq("id", scrimId)
+
+  revalidatePath(`/scrims/${scrimId}`)
+  redirect(`/scrims/${scrimId}`)
+}
