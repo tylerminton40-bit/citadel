@@ -16,6 +16,12 @@ type TeamInfo = {
   is_scrim?: boolean
 }
 
+type MemberInfo = {
+  steam_name: string
+  avatar_url: string | null
+  role: string
+}
+
 export default async function ScrimDetailPage({
   params,
 }: {
@@ -57,8 +63,21 @@ export default async function ScrimDetailPage({
       </div>
     )
   }
-  
-    let creatorMembers: { steam_name: string; avatar_url: string | null; role: string }[] = []
+
+  const creatorTeam = scrim.creator_team as TeamInfo | null
+  const opponentTeam = scrim.opponent_team as TeamInfo | null
+  const isCreator = profile.id === scrim.creator_id
+  const isOpen = scrim.status === "open"
+  const isAccepted = scrim.status === "accepted"
+  const isChoosing = scrim.status === "choosing"
+  const isDrafting = scrim.status === "drafting"
+  const isLive = scrim.status === "live"
+  const isDisputed = scrim.status === "disputed"
+  const isCompleted = scrim.status === "completed"
+
+  let creatorMembers: MemberInfo[] = []
+  let opponentMembers: MemberInfo[] = []
+
   if (scrim.creator_team_id) {
     const { data } = await supabase
       .from("team_members")
@@ -74,14 +93,20 @@ export default async function ScrimDetailPage({
     })
   }
 
-  const creatorTeam = scrim.creator_team as TeamInfo | null
-  const opponentTeam = scrim.opponent_team as TeamInfo | null
-  const isCreator = profile.id === scrim.creator_id
-  const isOpen = scrim.status === "open"
-  const isAccepted = scrim.status === "accepted"
-  const isChoosing = scrim.status === "choosing"
-  const isDrafting = scrim.status === "drafting"
-  const isLive = scrim.status === "live"
+  if (scrim.opponent_team_id) {
+    const { data } = await supabase
+      .from("team_members")
+      .select("role, profile:profiles(steam_name, avatar_url)")
+      .eq("team_id", scrim.opponent_team_id)
+    opponentMembers = (data || []).map((row) => {
+      const p = Array.isArray(row.profile) ? row.profile[0] : row.profile
+      return {
+        role: row.role,
+        steam_name: p?.steam_name || "?",
+        avatar_url: p?.avatar_url || null,
+      }
+    })
+  }
 
   const { data: memberships } = await supabase
     .from("team_members")
@@ -117,7 +142,6 @@ export default async function ScrimDetailPage({
           </span>
         </div>
 
-        {/* VS header */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-3xl p-6 sm:p-8 mb-6">
           <div className="grid grid-cols-3 items-center gap-4">
             <div className="text-center">
@@ -172,7 +196,50 @@ export default async function ScrimDetailPage({
           </div>
         </div>
 
-        {/* OPEN — cancel / accept only */}
+        {/* Rosters always */}
+        <div className="grid sm:grid-cols-2 gap-4 mb-6">
+          {creatorMembers.length > 0 && (
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
+              <h3 className="text-xs font-bold text-gray-400 mb-3">
+                {creatorTeam?.name} roster
+              </h3>
+              <div className="space-y-2">
+                {creatorMembers.map((m, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    {m.avatar_url ? (
+                      <img src={m.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-[#1c1c28]" />
+                    )}
+                    <div className="text-sm flex-1 truncate">{m.steam_name}</div>
+                    <div className="text-xs text-gray-500">{m.role}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {opponentMembers.length > 0 && (
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
+              <h3 className="text-xs font-bold text-gray-400 mb-3">
+                {opponentTeam?.name} roster
+              </h3>
+              <div className="space-y-2">
+                {opponentMembers.map((m, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    {m.avatar_url ? (
+                      <img src={m.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-[#1c1c28]" />
+                    )}
+                    <div className="text-sm flex-1 truncate">{m.steam_name}</div>
+                    <div className="text-xs text-gray-500">{m.role}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         {isOpen && isCreator && (
           <form action={cancelScrim.bind(null, id)} className="mb-6 text-center">
             <button
@@ -183,27 +250,6 @@ export default async function ScrimDetailPage({
             </button>
           </form>
         )}
-		
-		{isOpen && creatorMembers.length > 0 && (
-  <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 mb-6">
-    <h3 className="text-sm font-bold text-gray-400 mb-3">
-      {creatorTeam?.name} roster
-    </h3>
-    <div className="space-y-2">
-      {creatorMembers.map((m, i) => (
-        <div key={i} className="flex items-center gap-3">
-          {m.avatar_url ? (
-            <img src={m.avatar_url} alt="" className="w-8 h-8 rounded-full" />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-[#1c1c28]" />
-          )}
-          <div className="text-sm flex-1">{m.steam_name}</div>
-          <div className="text-xs text-gray-500">{m.role}</div>
-        </div>
-      ))}
-    </div>
-  </div>
-)}
 
         {isOpen && !isCreator && myScrimTeams.length > 0 && (
           <form
@@ -222,46 +268,53 @@ export default async function ScrimDetailPage({
                 </option>
               ))}
             </select>
-            <button
-              type="submit"
-              className="btn-primary w-full py-3 rounded-xl text-sm"
-            >
+            <button type="submit" className="btn-primary w-full py-3 rounded-xl text-sm">
               Accept Scrim
             </button>
           </form>
         )}
 
-        {isOpen && !isCreator && myScrimTeams.length === 0 && (
-          <div className="text-sm text-gray-500 text-center mb-6">
-            Need a Scrim team to accept.{" "}
-            <Link href="/teams/create" className="text-[#FF5C00] hover:underline">
-              Create one
+        {(isAccepted ||
+          isChoosing ||
+          isDrafting ||
+          isLive ||
+          isDisputed ||
+          isCompleted) &&
+          opponentTeam && (
+            <ScrimLive
+              scrimId={id}
+              profileId={profile.id}
+              creatorName={creatorTeam?.name || "Host team"}
+              opponentName={opponentTeam?.name || "Challenger"}
+              initial={{
+                id: scrim.id,
+                status: scrim.status,
+                talk_ends_at: scrim.talk_ends_at,
+                creator_ready: !!scrim.creator_ready,
+                opponent_ready: !!scrim.opponent_ready,
+                host_team_id: scrim.host_team_id,
+                first_ban_team_id: scrim.first_ban_team_id,
+                draft_state: scrim.draft_state,
+                creator_team_id: scrim.creator_team_id,
+                opponent_team_id: scrim.opponent_team_id,
+                creator_id: scrim.creator_id,
+                opponent_captain_id: scrim.opponent_captain_id,
+                private_code: scrim.private_code,
+                creator_report: scrim.creator_report,
+                opponent_report: scrim.opponent_report,
+              }}
+            />
+          )}
+
+        {isDisputed && (
+          <div className="mt-6 text-center">
+            <Link
+              href={`/tickets/create?scrim=${id}`}
+              className="btn-primary px-6 py-2.5 rounded-xl text-sm inline-block"
+            >
+              Open ticket for this scrim
             </Link>
           </div>
-        )}
-
-        {/* LIVE block — talk, ready, choose, draft (no refresh) */}
-        {(isAccepted || isChoosing || isDrafting || isLive) && opponentTeam && (
-          <ScrimLive
-            scrimId={id}
-            profileId={profile.id}
-            creatorName={creatorTeam?.name || "Host team"}
-            opponentName={opponentTeam?.name || "Challenger"}
-            initial={{
-              id: scrim.id,
-              status: scrim.status,
-              talk_ends_at: scrim.talk_ends_at,
-              creator_ready: !!scrim.creator_ready,
-              opponent_ready: !!scrim.opponent_ready,
-              host_team_id: scrim.host_team_id,
-              first_ban_team_id: scrim.first_ban_team_id,
-              draft_state: scrim.draft_state,
-              creator_team_id: scrim.creator_team_id,
-              opponent_team_id: scrim.opponent_team_id,
-              creator_id: scrim.creator_id,
-              opponent_captain_id: scrim.opponent_captain_id,
-            }}
-          />
         )}
       </main>
     </div>

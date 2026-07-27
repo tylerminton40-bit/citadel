@@ -86,7 +86,7 @@ export default function ScrimLive({
   const isOppCap = profileId === data.opponent_captain_id
   const isCaptain = isCreator || isOppCap
 
-    const myTeamId = isCreator
+  const myTeamId = isCreator
     ? data.creator_team_id
     : isOppCap
     ? data.opponent_team_id
@@ -101,7 +101,6 @@ export default function ScrimLive({
   const mins = Math.floor(secondsLeft / 60)
   const secs = secondsLeft % 60
 
-  // ---------- ACCEPTED ----------
   if (data.status === "accepted") {
     const iAmReady = isCreator ? data.creator_ready : isOppCap ? data.opponent_ready : false
     const canReady = isCaptain && !iAmReady
@@ -161,7 +160,6 @@ export default function ScrimLive({
     )
   }
 
-  // ---------- CHOOSING ----------
   if (data.status === "choosing") {
     return (
       <div className="bg-[#111118] border border-[#FF5C00]/40 rounded-2xl p-6 space-y-4">
@@ -176,14 +174,14 @@ export default function ScrimLive({
               <button
                 disabled={busy}
                 onClick={() => postAction({ action: "choose", choice: "host" })}
-                className="py-4 rounded-xl bg-[#FF5C00]/15 border border-[#FF5C00]/40 text-[#FF5C00] font-bold hover:bg-[#FF5C00]/25 disabled:opacity-50"
+                className="py-4 rounded-xl bg-[#FF5C00]/15 border border-[#FF5C00]/40 text-[#FF5C00] font-bold disabled:opacity-50"
               >
                 Host
               </button>
               <button
                 disabled={busy}
                 onClick={() => postAction({ action: "choose", choice: "first_ban" })}
-                className="py-4 rounded-xl bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold hover:bg-purple-500/25 disabled:opacity-50"
+                className="py-4 rounded-xl bg-purple-500/15 border border-purple-500/40 text-purple-300 font-bold disabled:opacity-50"
               >
                 First Ban
               </button>
@@ -198,8 +196,12 @@ export default function ScrimLive({
     )
   }
 
-  // ---------- DRAFTING / LIVE ----------
-  if (data.status === "drafting" || data.status === "live") {
+  if (
+    data.status === "drafting" ||
+    data.status === "live" ||
+    data.status === "disputed" ||
+    data.status === "completed"
+  ) {
     const state: DraftState = data.draft_state || {
       step: 0,
       withinStep: 0,
@@ -233,132 +235,108 @@ export default function ScrimLive({
 
     return (
       <div className="space-y-6">
-        {/* Draft board while drafting */}
-        {data.status === "drafting" && (
-          <>
-            <div className="text-center">
-              {state.phase === "done" ? (
-                <div className="text-lg font-bold text-emerald-400">Draft complete</div>
-              ) : (
-                <>
-                  <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                    {step?.type === "ban" ? "Ban" : "Pick"} · live
-                  </div>
-                  <div className="font-bold text-[#FF5C00]">
-                    {state.turn_team_id
-                      ? `${labelFor(state.turn_team_id)} — ${step?.type} (${
-                          (step?.count || 1) - (state.withinStep || 0)
-                        } left)`
-                      : "…"}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              {[data.creator_team_id, data.opponent_team_id].filter(Boolean).map((tid) => (
-                <div key={tid!} className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
-                  <div className="text-sm font-bold mb-2 truncate">{labelFor(tid!)}</div>
-                  <div className="text-[10px] text-gray-500 mb-1">PICKS</div>
-                  <div className="flex flex-wrap gap-1 mb-3 min-h-[28px]">
-                    {state.picks
-                      .filter((p) => p.teamId === tid)
-                      .map((p) => (
-                        <span
-                          key={p.heroId}
-                          className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400"
-                        >
-                          {heroName(p.heroId)}
-                        </span>
-                      ))}
-                  </div>
-                  <div className="text-[10px] text-gray-500 mb-1">BANS</div>
-                  <div className="flex flex-wrap gap-1 min-h-[28px]">
-                    {state.bans
-                      .filter((b) => b.teamId === tid)
-                      .map((b) => (
-                        <span
-                          key={b.heroId}
-                          className="text-[11px] px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 line-through"
-                        >
-                          {heroName(b.heroId)}
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {state.phase !== "done" && (
-              <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
-                <div className="text-xs text-gray-500 mb-3">
-                  {myTurn ? "Your turn — tap a hero" : "Waiting for other captain…"}
-                </div>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {HEROES.map((h) => {
-                    const used = taken.has(h.id)
-                    return (
-                      <button
-                        key={h.id}
-                        disabled={!myTurn || used || busy}
-                        onClick={() => postAction({ action: "draft", hero_id: h.id })}
-                        className={`w-full py-2.5 px-2 rounded-xl text-xs font-medium transition ${
-                          used
-                            ? "bg-[#08080d] text-gray-600 line-through cursor-not-allowed"
-                            : myTurn
-                            ? "bg-[#08080d] border border-[#1c1c28] hover:border-[#FF5C00] hover:text-[#FF5C00]"
-                            : "bg-[#08080d] text-gray-500 cursor-default"
-                        }`}
-                      >
-                        {h.name}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </>
+        {(data.status === "disputed" || data.status === "completed") && (
+          <div
+            className={`rounded-2xl p-5 border text-center ${
+              data.status === "disputed"
+                ? "bg-red-500/10 border-red-500/30 text-red-300"
+                : "bg-blue-500/10 border-blue-500/30 text-blue-300"
+            }`}
+          >
+            <div className="font-bold text-lg capitalize">{data.status}</div>
+            <p className="text-sm mt-1 opacity-80">
+              Draft, teams, and details stay visible for review and tickets.
+            </p>
+          </div>
         )}
 
-        {/* LIVE: instructions + code + report */}
+        {data.status === "drafting" && (
+          <div className="text-center">
+            {state.phase === "done" ? (
+              <div className="text-lg font-bold text-emerald-400">Draft complete</div>
+            ) : (
+              <>
+                <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+                  {step?.type === "ban" ? "Ban" : "Pick"} · live
+                </div>
+                <div className="font-bold text-[#FF5C00]">
+                  {state.turn_team_id
+                    ? `${labelFor(state.turn_team_id)} — ${step?.type} (${
+                        (step?.count || 1) - (state.withinStep || 0)
+                      } left)`
+                    : "…"}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Draft summary always visible */}
+        <div className="grid grid-cols-2 gap-3">
+          {[data.creator_team_id, data.opponent_team_id].filter(Boolean).map((tid) => (
+            <div key={tid!} className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
+              <div className="text-sm font-bold mb-2 truncate">{labelFor(tid!)}</div>
+              <div className="text-[10px] text-gray-500 mb-1">PICKS</div>
+              <div className="flex flex-wrap gap-1 mb-3 min-h-[28px]">
+                {state.picks
+                  .filter((p) => p.teamId === tid)
+                  .map((p) => (
+                    <span
+                      key={p.heroId}
+                      className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400"
+                    >
+                      {heroName(p.heroId)}
+                    </span>
+                  ))}
+              </div>
+              <div className="text-[10px] text-gray-500 mb-1">BANS</div>
+              <div className="flex flex-wrap gap-1 min-h-[28px]">
+                {state.bans
+                  .filter((b) => b.teamId === tid)
+                  .map((b) => (
+                    <span
+                      key={b.heroId}
+                      className="text-[11px] px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 line-through"
+                    >
+                      {heroName(b.heroId)}
+                    </span>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {data.status === "drafting" && state.phase !== "done" && (
+          <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
+            <div className="text-xs text-gray-500 mb-3">
+              {myTurn ? "Your turn — tap a hero" : "Waiting for other captain…"}
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {HEROES.map((h) => {
+                const used = taken.has(h.id)
+                return (
+                  <button
+                    key={h.id}
+                    disabled={!myTurn || used || busy}
+                    onClick={() => postAction({ action: "draft", hero_id: h.id })}
+                    className={`w-full py-2.5 px-2 rounded-xl text-xs font-medium transition ${
+                      used
+                        ? "bg-[#08080d] text-gray-600 line-through cursor-not-allowed"
+                        : myTurn
+                        ? "bg-[#08080d] border border-[#1c1c28] hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                        : "bg-[#08080d] text-gray-500 cursor-default"
+                    }`}
+                  >
+                    {h.name}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {data.status === "live" && (
           <div className="space-y-4">
-            {/* Final draft summary */}
-            <div className="grid grid-cols-2 gap-3">
-              {[data.creator_team_id, data.opponent_team_id].filter(Boolean).map((tid) => (
-                <div key={tid!} className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
-                  <div className="text-sm font-bold mb-2 truncate">{labelFor(tid!)}</div>
-                  <div className="text-[10px] text-gray-500 mb-1">PICKS</div>
-                  <div className="flex flex-wrap gap-1 mb-2 min-h-[24px]">
-                    {state.picks
-                      .filter((p) => p.teamId === tid)
-                      .map((p) => (
-                        <span
-                          key={p.heroId}
-                          className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400"
-                        >
-                          {heroName(p.heroId)}
-                        </span>
-                      ))}
-                  </div>
-                  <div className="text-[10px] text-gray-500 mb-1">BANS</div>
-                  <div className="flex flex-wrap gap-1">
-                    {state.bans
-                      .filter((b) => b.teamId === tid)
-                      .map((b) => (
-                        <span
-                          key={b.heroId}
-                          className="text-[11px] px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 line-through"
-                        >
-                          {heroName(b.heroId)}
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Instructions differ for host */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <h3 className="font-bold text-[#FF5C00] mb-3">
                 {isHostCaptain ? "Host instructions" : "How to join"}
@@ -367,9 +345,9 @@ export default function ScrimLive({
                 <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
                   <li>Create a private match in Deadlock (normal 6v6).</li>
                   <li>Use the heroes your team drafted above.</li>
-                  <li>Post the join code in the box below so the other team can connect.</li>
+                  <li>Post the join code below so the other team can connect.</li>
                   <li>Wait until all 12 players are in, then start.</li>
-                  <li>After the game, report the result with the buttons below.</li>
+                  <li>After the game, report the result below.</li>
                 </ol>
               ) : (
                 <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
@@ -381,10 +359,8 @@ export default function ScrimLive({
               )}
             </div>
 
-                        {/* Match code — HOST CAPTAIN ONLY can post */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <h3 className="font-bold mb-3">Match code · live</h3>
-
               {data.private_code ? (
                 <div className="text-2xl font-mono font-bold text-center py-4 bg-[#08080d] rounded-xl mb-2 tracking-wider">
                   {data.private_code}
@@ -420,7 +396,6 @@ export default function ScrimLive({
               )}
             </div>
 
-            {/* Report — old style like normal matches */}
             {isCaptain && (
               <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
                 <h3 className="font-bold mb-1">Report result</h3>
