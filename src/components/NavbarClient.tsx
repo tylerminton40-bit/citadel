@@ -27,6 +27,7 @@ export default function NavbarClient({
   const [open, setOpen] = useState(false)
 
 const links = [
+{ href: "/scrims", label: "Scrims" },
   { href: "/ranks", label: "Ranks" },
   { href: "/matches", label: "Match Finder" },
   { href: "/teams", label: "Teams" },

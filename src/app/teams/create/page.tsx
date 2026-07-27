@@ -7,7 +7,7 @@ import { createTeam } from "../actions"
 export default async function CreateTeamPage() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
+  if (!steamId) redirect("/login?next=/teams/create")
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,7 +20,7 @@ export default async function CreateTeamPage() {
     .eq("steam_id", steamId)
     .single()
 
-  if (!profile) redirect("/")
+  if (!profile) redirect("/login?next=/teams/create")
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
@@ -28,17 +28,18 @@ export default async function CreateTeamPage() {
 
       <main className="max-w-xl mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold mb-2">Create Team</h1>
-        <p className="text-gray-400 text-sm mb-8">One team per mode (you can have a 2v2 and a 3v3, etc).</p>
+        <p className="text-gray-400 text-sm mb-8">
+          One team per mode. Check “Scrim team” for 6v6 scrims.
+        </p>
 
         <form action={createTeam} className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 space-y-6">
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Team Name</label>
+            <label className="block text-sm text-gray-400 mb-2">Team name</label>
             <input
               name="name"
               required
-              maxLength={32}
-              placeholder="e.g. Citadel Elite"
               className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
+              placeholder="Team name"
             />
           </div>
 
@@ -47,20 +48,52 @@ export default async function CreateTeamPage() {
             <input
               name="tag"
               maxLength={5}
-              placeholder="e.g. CTD"
               className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
+              placeholder="e.g. CTL"
             />
           </div>
 
           <div>
-            <label className="block text-sm text-gray-400 mb-2">Team Size</label>
-            <select name="size" required className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]">
+            <label className="block text-sm text-gray-400 mb-2">Team picture (image link)</label>
+            <input
+              name="avatar_url"
+              type="url"
+              className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
+              placeholder="https://i.imgur.com/..."
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Paste an image URL (Imgur, Discord, etc.)
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Size</label>
+            <select
+              name="size"
+              required
+              className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
+            >
               <option value="2">2v2</option>
               <option value="3">3v3</option>
               <option value="4">4v4</option>
               <option value="6">6v6</option>
             </select>
           </div>
+
+          <label className="flex items-center gap-3 p-4 rounded-xl bg-[#08080d] border border-[#1c1c28] cursor-pointer">
+            <input
+              type="checkbox"
+              name="is_scrim"
+              value="true"
+              className="w-4 h-4 rounded border-[#1c1c28] accent-[#FF5C00]"
+            />
+            <div>
+              <div className="text-sm font-medium">Scrim team</div>
+              <div className="text-xs text-gray-500">
+                Use for Scrims tab (6v6 practice + ladder). Still size 6 recommended.
+              </div>
+            </div>
+          </label>
 
           <button type="submit" className="btn-primary w-full py-3 rounded-xl font-medium">
             Create Team

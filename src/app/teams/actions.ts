@@ -89,7 +89,9 @@ export async function createTeam(formData: FormData) {
 
   const name = (formData.get("name") as string)?.trim()
   const tag = (formData.get("tag") as string)?.trim() || null
+  const avatarUrl = (formData.get("avatar_url") as string)?.trim() || null
   const size = parseInt(formData.get("size") as string, 10)
+  const isScrim = formData.get("is_scrim") === "true"
 
   if (!name || ![2, 3, 4, 6].includes(size)) {
     redirect("/teams/create?error=invalid")
@@ -108,7 +110,16 @@ export async function createTeam(formData: FormData) {
 
   const { data: team, error } = await supabase
     .from("teams")
-    .insert({ name, tag, size, owner_id: profile.id, wins: 0, losses: 0 })
+    .insert({
+      name,
+      tag,
+      size,
+      owner_id: profile.id,
+      wins: 0,
+      losses: 0,
+      avatar_url: avatarUrl,
+      is_scrim: isScrim,
+    })
     .select()
     .single()
 
