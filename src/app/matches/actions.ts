@@ -205,8 +205,8 @@ export async function sendMessage(matchId: string, formData: FormData) {
   revalidatePath(`/matches/${matchId}`)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function applyTeamMemberRecords(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
   teamId: string | null,
   won: boolean,
