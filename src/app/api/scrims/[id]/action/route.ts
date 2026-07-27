@@ -261,5 +261,17 @@ export async function POST(
     return NextResponse.json(final)
   }
   
+    if (action === "dispute") {
+    if (!["live", "accepted", "drafting"].includes(scrim.status)) {
+      return NextResponse.json({ error: "status" }, { status: 400 })
+    }
+    if (!isCreator && !isOppCap) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 })
+    }
+    await supabase.from("scrims").update({ status: "disputed" }).eq("id", id)
+    const { data: final } = await supabase.from("scrims").select("*").eq("id", id).single()
+    return NextResponse.json(final)
+  }
+  
   return NextResponse.json({ error: "unknown" }, { status: 400 })
 }

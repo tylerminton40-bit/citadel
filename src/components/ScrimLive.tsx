@@ -16,7 +16,7 @@ type ScrimLiveData = {
   opponent_team_id: string | null
   creator_id: string
   opponent_captain_id: string | null
-    private_code?: string | null
+  private_code?: string | null
   creator_report?: string | null
   opponent_report?: string | null
 }
@@ -37,6 +37,7 @@ export default function ScrimLive({
   const [data, setData] = useState<ScrimLiveData>(initial)
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [busy, setBusy] = useState(false)
+  const [codeInput, setCodeInput] = useState("")
 
   const poll = useCallback(async () => {
     try {
@@ -46,13 +47,11 @@ export default function ScrimLive({
     } catch {}
   }, [scrimId])
 
-  // Live poll every 2s
   useEffect(() => {
     const id = setInterval(poll, 2000)
     return () => clearInterval(id)
   }, [poll])
 
-  // Talk timer
   useEffect(() => {
     function tick() {
       if (!data.talk_ends_at) {
@@ -87,10 +86,22 @@ export default function ScrimLive({
   const isOppCap = profileId === data.opponent_captain_id
   const isCaptain = isCreator || isOppCap
 
+    const myTeamId = isCreator
+    ? data.creator_team_id
+    : isOppCap
+    ? data.opponent_team_id
+    : null
+
+  const isHostCaptain =
+    !!isCaptain &&
+    !!data.host_team_id &&
+    !!myTeamId &&
+    String(myTeamId) === String(data.host_team_id)
+
   const mins = Math.floor(secondsLeft / 60)
   const secs = secondsLeft % 60
 
-  // ---------- ACCEPTED: talk + ready ----------
+  // ---------- ACCEPTED ----------
   if (data.status === "accepted") {
     const iAmReady = isCreator ? data.creator_ready : isOppCap ? data.opponent_ready : false
     const canReady = isCaptain && !iAmReady
@@ -99,20 +110,32 @@ export default function ScrimLive({
       <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 space-y-5">
         <div className="text-center">
           <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Talk window · live</div>
-          <div className={`text-4xl font-black tabular-nums ${secondsLeft <= 30 ? "text-red-400" : "text-[#FF5C00]"}`}>
+          <div
+            className={`text-4xl font-black tabular-nums ${
+              secondsLeft <= 30 ? "text-red-400" : "text-[#FF5C00]"
+            }`}
+          >
             {mins}:{secs.toString().padStart(2, "0")}
           </div>
-          <p className="text-xs text-gray-500 mt-2">Both captains ready up — updates live, no refresh</p>
+          <p className="text-xs text-gray-500 mt-2">Both captains ready up — updates live</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className={`rounded-xl p-4 text-center border transition ${data.creator_ready ? "border-emerald-500/50 bg-emerald-500/10" : "border-[#1c1c28]"}`}>
+          <div
+            className={`rounded-xl p-4 text-center border ${
+              data.creator_ready ? "border-emerald-500/50 bg-emerald-500/10" : "border-[#1c1c28]"
+            }`}
+          >
             <div className="text-sm font-medium truncate">{creatorName}</div>
             <div className={`text-xs mt-1 ${data.creator_ready ? "text-emerald-400" : "text-gray-500"}`}>
               {data.creator_ready ? "Ready ✓" : "Not ready"}
             </div>
           </div>
-          <div className={`rounded-xl p-4 text-center border transition ${data.opponent_ready ? "border-emerald-500/50 bg-emerald-500/10" : "border-[#1c1c28]"}`}>
+          <div
+            className={`rounded-xl p-4 text-center border ${
+              data.opponent_ready ? "border-emerald-500/50 bg-emerald-500/10" : "border-[#1c1c28]"
+            }`}
+          >
             <div className="text-sm font-medium truncate">{opponentName}</div>
             <div className={`text-xs mt-1 ${data.opponent_ready ? "text-emerald-400" : "text-gray-500"}`}>
               {data.opponent_ready ? "Ready ✓" : "Not ready"}
@@ -130,7 +153,9 @@ export default function ScrimLive({
           </button>
         )}
         {iAmReady && !(data.creator_ready && data.opponent_ready) && (
-          <div className="text-center text-sm text-emerald-400">You’re ready — waiting on other captain</div>
+          <div className="text-center text-sm text-emerald-400">
+            You’re ready — waiting on other captain
+          </div>
         )}
       </div>
     )
@@ -143,7 +168,10 @@ export default function ScrimLive({
         <h2 className="font-bold text-lg">Side choice · live</h2>
         {isOppCap ? (
           <>
-            <p className="text-sm text-gray-400">You accepted — pick Host or First Ban.</p>
+            <p className="text-sm text-gray-400">
+              You accepted — choose <strong className="text-white">Host</strong> or{" "}
+              <strong className="text-white">First Ban</strong>.
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <button
                 disabled={busy}
@@ -170,7 +198,7 @@ export default function ScrimLive({
     )
   }
 
-  // ---------- DRAFTING / LIVE (show draft board) ----------
+  // ---------- DRAFTING / LIVE ----------
   if (data.status === "drafting" || data.status === "live") {
     const state: DraftState = data.draft_state || {
       step: 0,
@@ -181,170 +209,258 @@ export default function ScrimLive({
       turn_team_id: data.first_ban_team_id,
     }
 
-    const myTeamId = isCreator
-      ? data.creator_team_id
-      : isOppCap
-      ? data.opponent_team_id
-      : null
-
     const taken = new Set([
       ...state.bans.map((b) => b.heroId),
       ...state.picks.map((p) => p.heroId),
     ])
     const step = DRAFT_STEPS[state.step]
     const myTurn =
-      isCaptain && state.phase !== "done" && state.turn_team_id === myTeamId && data.status === "drafting"
+      isCaptain &&
+      state.phase !== "done" &&
+      state.turn_team_id === myTeamId &&
+      data.status === "drafting"
 
     const labelFor = (teamId: string | null) =>
       teamId === data.creator_team_id ? creatorName : opponentName
 
     const heroName = (id: string) => HEROES.find((h) => h.id === id)?.name || id
 
+    const alreadyReported = isCreator
+      ? !!data.creator_report
+      : isOppCap
+      ? !!data.opponent_report
+      : false
+
     return (
       <div className="space-y-6">
-        <div className="text-center">
-          {state.phase === "done" || data.status === "live" ? (
-            <div className="text-lg font-bold text-emerald-400">Draft complete · live</div>
-          ) : (
-            <>
-              <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">
-                {step?.type === "ban" ? "Ban" : "Pick"} · live
-              </div>
-              <div className="font-bold text-[#FF5C00]">
-                {state.turn_team_id
-                  ? `${labelFor(state.turn_team_id)} — ${step?.type} (${(step?.count || 1) - (state.withinStep || 0)} left)`
-                  : "…"}
-              </div>
-            </>
-          )}
-        </div>
+        {/* Draft board while drafting */}
+        {data.status === "drafting" && (
+          <>
+            <div className="text-center">
+              {state.phase === "done" ? (
+                <div className="text-lg font-bold text-emerald-400">Draft complete</div>
+              ) : (
+                <>
+                  <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">
+                    {step?.type === "ban" ? "Ban" : "Pick"} · live
+                  </div>
+                  <div className="font-bold text-[#FF5C00]">
+                    {state.turn_team_id
+                      ? `${labelFor(state.turn_team_id)} — ${step?.type} (${
+                          (step?.count || 1) - (state.withinStep || 0)
+                        } left)`
+                      : "…"}
+                  </div>
+                </>
+              )}
+            </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          {[data.creator_team_id, data.opponent_team_id].filter(Boolean).map((tid) => (
-            <div key={tid!} className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
-              <div className="text-sm font-bold mb-2 truncate">{labelFor(tid!)}</div>
-              <div className="text-[10px] text-gray-500 mb-1">PICKS</div>
-              <div className="flex flex-wrap gap-1 mb-3 min-h-[28px]">
-                {state.picks
-                  .filter((p) => p.teamId === tid)
-                  .map((p) => (
-                    <span key={p.heroId} className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400">
-                      {heroName(p.heroId)}
-                    </span>
-                  ))}
-              </div>
-              <div className="text-[10px] text-gray-500 mb-1">BANS</div>
-              <div className="flex flex-wrap gap-1 min-h-[28px]">
-                {state.bans
-                  .filter((b) => b.teamId === tid)
-                  .map((b) => (
-                    <span key={b.heroId} className="text-[11px] px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 line-through">
-                      {heroName(b.heroId)}
-                    </span>
-                  ))}
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              {[data.creator_team_id, data.opponent_team_id].filter(Boolean).map((tid) => (
+                <div key={tid!} className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
+                  <div className="text-sm font-bold mb-2 truncate">{labelFor(tid!)}</div>
+                  <div className="text-[10px] text-gray-500 mb-1">PICKS</div>
+                  <div className="flex flex-wrap gap-1 mb-3 min-h-[28px]">
+                    {state.picks
+                      .filter((p) => p.teamId === tid)
+                      .map((p) => (
+                        <span
+                          key={p.heroId}
+                          className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400"
+                        >
+                          {heroName(p.heroId)}
+                        </span>
+                      ))}
+                  </div>
+                  <div className="text-[10px] text-gray-500 mb-1">BANS</div>
+                  <div className="flex flex-wrap gap-1 min-h-[28px]">
+                    {state.bans
+                      .filter((b) => b.teamId === tid)
+                      .map((b) => (
+                        <span
+                          key={b.heroId}
+                          className="text-[11px] px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 line-through"
+                        >
+                          {heroName(b.heroId)}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {data.status === "drafting" && state.phase !== "done" && (
-          <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
-            <div className="text-xs text-gray-500 mb-3">
-              {myTurn ? "Your turn — tap a hero" : "Waiting for other captain…"}
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {HEROES.map((h) => {
-                const used = taken.has(h.id)
-                return (
-                  <button
-                    key={h.id}
-                    disabled={!myTurn || used || busy}
-                    onClick={() => postAction({ action: "draft", hero_id: h.id })}
-                    className={`w-full py-2.5 px-2 rounded-xl text-xs font-medium transition ${
-                      used
-                        ? "bg-[#08080d] text-gray-600 line-through cursor-not-allowed"
-                        : myTurn
-                        ? "bg-[#08080d] border border-[#1c1c28] hover:border-[#FF5C00] hover:text-[#FF5C00]"
-                        : "bg-[#08080d] text-gray-500 cursor-default"
-                    }`}
-                  >
-                    {h.name}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
+            {state.phase !== "done" && (
+              <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
+                <div className="text-xs text-gray-500 mb-3">
+                  {myTurn ? "Your turn — tap a hero" : "Waiting for other captain…"}
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {HEROES.map((h) => {
+                    const used = taken.has(h.id)
+                    return (
+                      <button
+                        key={h.id}
+                        disabled={!myTurn || used || busy}
+                        onClick={() => postAction({ action: "draft", hero_id: h.id })}
+                        className={`w-full py-2.5 px-2 rounded-xl text-xs font-medium transition ${
+                          used
+                            ? "bg-[#08080d] text-gray-600 line-through cursor-not-allowed"
+                            : myTurn
+                            ? "bg-[#08080d] border border-[#1c1c28] hover:border-[#FF5C00] hover:text-[#FF5C00]"
+                            : "bg-[#08080d] text-gray-500 cursor-default"
+                        }`}
+                      >
+                        {h.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
-                {data.status === "live" && (
+        {/* LIVE: instructions + code + report */}
+        {data.status === "live" && (
           <div className="space-y-4">
-            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
-              <h3 className="font-bold text-[#FF5C00] mb-2">How to play (6v6 Normal)</h3>
-              <ol className="text-sm text-gray-400 space-y-1.5 list-decimal list-inside">
-                <li>Host creates a private match in Deadlock (normal 6v6 rules)</li>
-                <li>Host posts the join code below</li>
-                <li>Everyone joins with that code</li>
-                <li>Play the series, then both captains report</li>
-              </ol>
+            {/* Final draft summary */}
+            <div className="grid grid-cols-2 gap-3">
+              {[data.creator_team_id, data.opponent_team_id].filter(Boolean).map((tid) => (
+                <div key={tid!} className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
+                  <div className="text-sm font-bold mb-2 truncate">{labelFor(tid!)}</div>
+                  <div className="text-[10px] text-gray-500 mb-1">PICKS</div>
+                  <div className="flex flex-wrap gap-1 mb-2 min-h-[24px]">
+                    {state.picks
+                      .filter((p) => p.teamId === tid)
+                      .map((p) => (
+                        <span
+                          key={p.heroId}
+                          className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-500/15 text-emerald-400"
+                        >
+                          {heroName(p.heroId)}
+                        </span>
+                      ))}
+                  </div>
+                  <div className="text-[10px] text-gray-500 mb-1">BANS</div>
+                  <div className="flex flex-wrap gap-1">
+                    {state.bans
+                      .filter((b) => b.teamId === tid)
+                      .map((b) => (
+                        <span
+                          key={b.heroId}
+                          className="text-[11px] px-2 py-0.5 rounded-lg bg-red-500/15 text-red-400 line-through"
+                        >
+                          {heroName(b.heroId)}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+              ))}
             </div>
 
+            {/* Instructions differ for host */}
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+              <h3 className="font-bold text-[#FF5C00] mb-3">
+                {isHostCaptain ? "Host instructions" : "How to join"}
+              </h3>
+              {isHostCaptain ? (
+                <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
+                  <li>Create a private match in Deadlock (normal 6v6).</li>
+                  <li>Use the heroes your team drafted above.</li>
+                  <li>Post the join code in the box below so the other team can connect.</li>
+                  <li>Wait until all 12 players are in, then start.</li>
+                  <li>After the game, report the result with the buttons below.</li>
+                </ol>
+              ) : (
+                <ol className="text-sm text-gray-300 space-y-2 list-decimal list-inside">
+                  <li>Wait for the host to post the join code below.</li>
+                  <li>Copy the code and join their private match in Deadlock.</li>
+                  <li>Play the heroes your team drafted.</li>
+                  <li>After the game, your captain reports the result below.</li>
+                </ol>
+              )}
+            </div>
+
+                        {/* Match code — HOST CAPTAIN ONLY can post */}
             <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
               <h3 className="font-bold mb-3">Match code · live</h3>
+
               {data.private_code ? (
-                <div className="text-2xl font-mono font-bold text-center py-3 bg-[#08080d] rounded-xl mb-3">
+                <div className="text-2xl font-mono font-bold text-center py-4 bg-[#08080d] rounded-xl mb-2 tracking-wider">
                   {data.private_code}
                 </div>
               ) : (
-                <p className="text-sm text-gray-500 mb-3 text-center">Waiting for host to post code…</p>
+                <p className="text-sm text-gray-500 mb-3 text-center">
+                  Waiting for host to post the join code…
+                </p>
               )}
-              {/* Host captain only — simplify: allow either captain for now if host unknown */}
-              {(isCreator || isOppCap) && (
-                <div className="flex gap-2">
+
+              {isHostCaptain ? (
+                <div className="flex gap-2 mt-3">
                   <input
-                    id="scrim-code-input"
                     type="text"
-                    placeholder="Enter join code"
-                    className="flex-1 bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm"
+                    value={codeInput}
+                    onChange={(e) => setCodeInput(e.target.value)}
+                    placeholder="Paste join code"
+                    className="flex-1 bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF5C00]"
                   />
                   <button
                     type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      const el = document.getElementById("scrim-code-input") as HTMLInputElement
-                      if (el?.value) postAction({ action: "code", code: el.value })
-                    }}
-                    className="btn-primary px-4 py-2.5 rounded-xl text-sm"
+                    disabled={busy || !codeInput.trim()}
+                    onClick={() => postAction({ action: "code", code: codeInput.trim() })}
+                    className="btn-primary px-5 py-2.5 rounded-xl text-sm disabled:opacity-50"
                   >
                     Post
                   </button>
                 </div>
+              ) : (
+                <p className="text-xs text-gray-500 text-center mt-2">
+                  Only the host captain can post the code.
+                </p>
               )}
             </div>
 
-            {(isCreator || isOppCap) && (
+            {/* Report — old style like normal matches */}
+            {isCaptain && (
               <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
-                <h3 className="font-bold mb-3">Report result</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => postAction({ action: "report", winner: "creator" })}
-                    className="py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 font-medium text-sm"
-                  >
-                    {creatorName} won
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => postAction({ action: "report", winner: "opponent" })}
-                    className="py-3 rounded-xl bg-purple-500/15 border border-purple-500/40 text-purple-300 font-medium text-sm"
-                  >
-                    {opponentName} won
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-3 text-center">
-                  Both captains must report. Agree → +60 / −40 XP. Disagree → disputed.
+                <h3 className="font-bold mb-1">Report result</h3>
+                <p className="text-xs text-gray-500 mb-4">
+                  Both captains report. Agree → +60 / −40 XP. Disagree → disputed.
                 </p>
+
+                {alreadyReported ? (
+                  <div className="text-center text-sm text-emerald-400 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                    You reported — waiting for other captain
+                  </div>
+                ) : (
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => postAction({ action: "report", winner: "creator" })}
+                      className="flex-1 btn-primary py-3 rounded-xl text-sm font-medium disabled:opacity-50"
+                    >
+                      {creatorName} won
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => postAction({ action: "report", winner: "opponent" })}
+                      className="flex-1 py-3 rounded-xl text-sm font-medium border border-[#1c1c28] hover:border-[#FF5C00]/50 transition disabled:opacity-50"
+                    >
+                      {opponentName} won
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => postAction({ action: "dispute" })}
+                  className="w-full mt-3 py-2.5 rounded-xl text-sm text-red-400 border border-red-500/30 hover:bg-red-500/10 transition disabled:opacity-50"
+                >
+                  Open dispute
+                </button>
               </div>
             )}
           </div>
