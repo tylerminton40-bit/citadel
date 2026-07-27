@@ -21,7 +21,7 @@ type Scrim = {
   opponent_team: Team | null
 }
 
-function formatWhen(iso: string | null, created: string) {
+function formatWhen(iso: string | null) {
   if (iso) {
     const d = new Date(iso)
     return d.toLocaleString(undefined, {
@@ -76,7 +76,7 @@ export default function ScrimList({
                   {s.creator_team?.name || "Team"}
                 </div>
                 <div className="text-xs text-gray-500">
-                  {formatWhen(s.scheduled_at, s.created_at)}
+                  {formatWhen(s.scheduled_at)}
                   {s.visibility === "private" ? " · Invite only" : " · Open"}
                 </div>
               </div>

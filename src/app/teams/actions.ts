@@ -8,7 +8,7 @@ import { revalidatePath } from "next/cache"
 async function getProfile() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
+  if (!steamId) redirect("/login?next=/teams")
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,71 +17,12 @@ async function getProfile() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id")
+    .select("id, steam_name")
     .eq("steam_id", steamId)
     .single()
 
-  if (!profile) redirect("/")
+  if (!profile) redirect("/login?next=/teams")
   return { supabase, profile }
-}
-
-export async function invitePlayerById(teamId: string, formData: FormData) {
-  const { supabase, profile } = await getProfile()
-  const playerId = formData.get("player_id") as string
-
-  if (!playerId) redirect(`/teams/${teamId}/invite?error=name`)
-
-  const { data: team } = await supabase
-    .from("teams")
-    .select("*")
-    .eq("id", teamId)
-    .eq("owner_id", profile.id)
-    .single()
-
-  if (!team) redirect("/teams")
-
-  const { data: theirTeams } = await supabase
-    .from("team_members")
-    .select("id, team:teams(size)")
-    .eq("profile_id", playerId)
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (theirTeams?.some((m: any) => m.team?.size === team.size)) {
-    redirect(`/teams/${teamId}/invite?error=already_on_size`)
-  }
-
-  await supabase.from("team_invites").upsert({
-    team_id: teamId,
-    inviter_id: profile.id,
-    invitee_id: playerId,
-    status: "pending",
-  }, { onConflict: "team_id,invitee_id" })
-
-  revalidatePath("/teams")
-  redirect("/teams")
-}
-
-export async function kickMember(teamId: string, memberProfileId: string) {
-  const { supabase, profile } = await getProfile()
-
-  const { data: team } = await supabase
-    .from("teams")
-    .select("*")
-    .eq("id", teamId)
-    .eq("owner_id", profile.id)
-    .single()
-
-  if (!team) redirect("/teams")
-  if (memberProfileId === profile.id) redirect("/teams") // can't kick yourself
-
-  await supabase
-    .from("team_members")
-    .delete()
-    .eq("team_id", teamId)
-    .eq("profile_id", memberProfileId)
-
-  revalidatePath("/teams")
-  redirect("/teams")
 }
 
 export async function createTeam(formData: FormData) {
@@ -97,18 +38,22 @@ export async function createTeam(formData: FormData) {
     redirect("/teams/create?error=invalid")
   }
 
-   // One normal + one scrim team allowed per size
+  type ExistingMember = {
+    id: string
+    team: { size: number; is_scrim: boolean } | { size: number; is_scrim: boolean }[] | null
+  }
+
   const { data: existing } = await supabase
     .from("team_members")
     .select("id, team:teams(size, is_scrim)")
     .eq("profile_id", profile.id)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (
-    existing?.some(
-      (m: any) => m.team?.size === size && !!m.team?.is_scrim === isScrim
-    )
-  ) {
+  const conflict = ((existing || []) as ExistingMember[]).some((m) => {
+    const t = Array.isArray(m.team) ? m.team[0] : m.team
+    return t && t.size === size && !!t.is_scrim === isScrim
+  })
+
+  if (conflict) {
     redirect("/teams/create?error=already_on_size")
   }
 
@@ -141,11 +86,11 @@ export async function createTeam(formData: FormData) {
   redirect("/teams")
 }
 
-export async function invitePlayer(teamId: string, formData: FormData) {
+export async function invitePlayerById(teamId: string, formData: FormData) {
   const { supabase, profile } = await getProfile()
-  const steamName = (formData.get("steam_name") as string)?.trim()
+  const playerId = formData.get("player_id") as string
 
-  if (!steamName) redirect(`/teams/${teamId}/invite?error=name`)
+  if (!playerId) redirect(`/teams/${teamId}/invite?error=name`)
 
   const { data: team } = await supabase
     .from("teams")
@@ -156,33 +101,34 @@ export async function invitePlayer(teamId: string, formData: FormData) {
 
   if (!team) redirect("/teams")
 
-  const { data: invitee } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("steam_name", steamName)
-    .single()
-
-  if (!invitee) {
-    redirect(`/teams/${teamId}/invite?error=not_found`)
+  type MemberRow = {
+    id: string
+    team: { size: number; is_scrim: boolean } | { size: number; is_scrim: boolean }[] | null
   }
 
-  // Already on a team of this size?
   const { data: theirTeams } = await supabase
     .from("team_members")
-    .select("id, team:teams(size)")
-    .eq("profile_id", invitee.id)
+    .select("id, team:teams(size, is_scrim)")
+    .eq("profile_id", playerId)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (theirTeams?.some((m: any) => m.team?.size === team.size)) {
+  const alreadyOn = ((theirTeams || []) as MemberRow[]).some((m) => {
+    const t = Array.isArray(m.team) ? m.team[0] : m.team
+    return t && t.size === team.size && !!t.is_scrim === !!team.is_scrim
+  })
+
+  if (alreadyOn) {
     redirect(`/teams/${teamId}/invite?error=already_on_size`)
   }
 
-  await supabase.from("team_invites").upsert({
-    team_id: teamId,
-    inviter_id: profile.id,
-    invitee_id: invitee.id,
-    status: "pending",
-  }, { onConflict: "team_id,invitee_id" })
+  await supabase.from("team_invites").upsert(
+    {
+      team_id: teamId,
+      inviter_id: profile.id,
+      invitee_id: playerId,
+      status: "pending",
+    },
+    { onConflict: "team_id,invitee_id" }
+  )
 
   revalidatePath("/teams")
   redirect("/teams")
@@ -201,28 +147,30 @@ export async function acceptInvite(inviteId: string) {
 
   if (!invite) redirect("/teams")
 
-  // Already on a team of this size?
+  const team = Array.isArray(invite.team) ? invite.team[0] : invite.team
+  if (!team) redirect("/teams")
+
+  type MemberRow = {
+    id: string
+    team: { size: number; is_scrim: boolean } | { size: number; is_scrim: boolean }[] | null
+  }
+
   const { data: existing } = await supabase
     .from("team_members")
-    .select("id, team:teams(size)")
+    .select("id, team:teams(size, is_scrim)")
     .eq("profile_id", profile.id)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (existing?.some((m: any) => m.team?.size === invite.team.size)) {
+  const conflict = ((existing || []) as MemberRow[]).some((m) => {
+    const t = Array.isArray(m.team) ? m.team[0] : m.team
+    return t && t.size === team.size && !!t.is_scrim === !!team.is_scrim
+  })
+
+  if (conflict) {
     redirect("/teams?error=already_on_size")
   }
 
-  const { count } = await supabase
-    .from("team_members")
-    .select("*", { count: "exact", head: true })
-    .eq("team_id", invite.team_id)
-
-  if (count !== null && count >= invite.team.size) {
-    redirect("/teams?error=team_full")
-  }
-
   await supabase.from("team_members").insert({
-    team_id: invite.team_id,
+    team_id: team.id,
     profile_id: profile.id,
     role: "member",
   })
@@ -252,24 +200,44 @@ export async function declineInvite(inviteId: string) {
 export async function leaveTeam(teamId: string) {
   const { supabase, profile } = await getProfile()
 
-  const { data: membership } = await supabase
-    .from("team_members")
-    .select("*")
-    .eq("team_id", teamId)
-    .eq("profile_id", profile.id)
+  const { data: team } = await supabase
+    .from("teams")
+    .select("owner_id")
+    .eq("id", teamId)
     .single()
 
-  if (!membership) redirect("/teams")
-
-  if (membership.role === "owner") {
-    await supabase.from("teams").delete().eq("id", teamId)
-  } else {
-    await supabase
-      .from("team_members")
-      .delete()
-      .eq("team_id", teamId)
-      .eq("profile_id", profile.id)
+  if (team?.owner_id === profile.id) {
+    redirect("/teams?error=owner_cannot_leave")
   }
+
+  await supabase
+    .from("team_members")
+    .delete()
+    .eq("team_id", teamId)
+    .eq("profile_id", profile.id)
+
+  revalidatePath("/teams")
+  redirect("/teams")
+}
+
+export async function kickMember(teamId: string, memberProfileId: string) {
+  const { supabase, profile } = await getProfile()
+
+  const { data: team } = await supabase
+    .from("teams")
+    .select("*")
+    .eq("id", teamId)
+    .eq("owner_id", profile.id)
+    .single()
+
+  if (!team) redirect("/teams")
+  if (memberProfileId === profile.id) redirect("/teams")
+
+  await supabase
+    .from("team_members")
+    .delete()
+    .eq("team_id", teamId)
+    .eq("profile_id", memberProfileId)
 
   revalidatePath("/teams")
   redirect("/teams")
