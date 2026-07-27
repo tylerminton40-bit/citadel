@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
 import { acceptInvite, declineInvite, leaveTeam, kickMember } from "./actions"
+import { disbandTeam } from "./actions"
 
 type ProfileMini = {
   id: string
@@ -245,6 +246,7 @@ export default async function TeamsPage() {
                               </button>
                             </form>
                           )}
+						  
                         </div>
                       ))}
                     </div>
@@ -258,6 +260,16 @@ export default async function TeamsPage() {
                           Invite
                         </Link>
                       )}
+					  {isOwner && (
+  <form action={disbandTeam.bind(null, team.id)}>
+    <button
+      type="submit"
+      className="px-4 py-2 rounded-xl text-sm border border-red-500/40 text-red-400 hover:bg-red-500/10 transition"
+    >
+      Disband Team
+    </button>
+  </form>
+)}
                       {!isOwner && (
                         <form action={leaveTeam.bind(null, team.id)}>
                           <button

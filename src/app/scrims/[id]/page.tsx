@@ -57,6 +57,22 @@ export default async function ScrimDetailPage({
       </div>
     )
   }
+  
+    let creatorMembers: { steam_name: string; avatar_url: string | null; role: string }[] = []
+  if (scrim.creator_team_id) {
+    const { data } = await supabase
+      .from("team_members")
+      .select("role, profile:profiles(steam_name, avatar_url)")
+      .eq("team_id", scrim.creator_team_id)
+    creatorMembers = (data || []).map((row) => {
+      const p = Array.isArray(row.profile) ? row.profile[0] : row.profile
+      return {
+        role: row.role,
+        steam_name: p?.steam_name || "?",
+        avatar_url: p?.avatar_url || null,
+      }
+    })
+  }
 
   const creatorTeam = scrim.creator_team as TeamInfo | null
   const opponentTeam = scrim.opponent_team as TeamInfo | null
@@ -167,6 +183,27 @@ export default async function ScrimDetailPage({
             </button>
           </form>
         )}
+		
+		{isOpen && creatorMembers.length > 0 && (
+  <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 mb-6">
+    <h3 className="text-sm font-bold text-gray-400 mb-3">
+      {creatorTeam?.name} roster
+    </h3>
+    <div className="space-y-2">
+      {creatorMembers.map((m, i) => (
+        <div key={i} className="flex items-center gap-3">
+          {m.avatar_url ? (
+            <img src={m.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-[#1c1c28]" />
+          )}
+          <div className="text-sm flex-1">{m.steam_name}</div>
+          <div className="text-xs text-gray-500">{m.role}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
         {isOpen && !isCreator && myScrimTeams.length > 0 && (
           <form

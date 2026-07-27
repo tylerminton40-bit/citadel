@@ -33,9 +33,9 @@ type MemberRow = {
 export default async function ScrimsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>
+  searchParams: Promise<{ tab?: string; team?: string }>
 }) {
-  const { tab } = await searchParams
+  const { tab, team: teamParam } = await searchParams
   const currentTab = tab || "hub"
 
   const cookieStore = await cookies()
@@ -64,7 +64,8 @@ export default async function ScrimsPage({
     .map((m) => (Array.isArray(m.team) ? m.team[0] : m.team))
     .filter((t): t is TeamRow => !!t && t.is_scrim === true)
 
-  const mainTeam = scrimTeams[0] || null
+  const mainTeam =
+    scrimTeams.find((t) => t.id === teamParam) || scrimTeams[0] || null
 
   let members: MemberRow[] = []
   if (mainTeam) {
@@ -72,11 +73,9 @@ export default async function ScrimsPage({
       .from("team_members")
       .select("role, profile:profiles(id, steam_name, avatar_url, xp)")
       .eq("team_id", mainTeam.id)
-
     members = (data as unknown as MemberRow[]) || []
   }
 
-  // Open scrims
   const { data: openScrims } = await supabase
     .from("scrims")
     .select(`
@@ -86,20 +85,16 @@ export default async function ScrimsPage({
     `)
     .eq("status", "open")
     .eq("visibility", "open")
-    .order("scheduled_at", { ascending: true, nullsFirst: false })
     .order("created_at", { ascending: false })
-    .limit(15)
+    .limit(20)
 
-  // Your scrims — any team you're on, all phases
   let yourScrims: unknown[] = []
   {
     const { data: allMemberships } = await supabase
       .from("team_members")
       .select("team_id")
       .eq("profile_id", profile.id)
-
     const teamIds = (allMemberships || []).map((m) => m.team_id)
-
     if (teamIds.length > 0) {
       const { data } = await supabase
         .from("scrims")
@@ -124,7 +119,6 @@ export default async function ScrimsPage({
         ])
         .order("created_at", { ascending: false })
         .limit(40)
-
       yourScrims = data || []
     }
   }
@@ -134,10 +128,21 @@ export default async function ScrimsPage({
   const games = wins + losses
   const winPct = games > 0 ? Math.round((wins / games) * 100) : 0
 
+  const teamIndex = mainTeam
+    ? Math.max(0, scrimTeams.findIndex((t) => t.id === mainTeam.id))
+    : 0
+  const prevTeam =
+    scrimTeams.length > 1
+      ? scrimTeams[(teamIndex - 1 + scrimTeams.length) % scrimTeams.length]
+      : null
+  const nextTeam =
+    scrimTeams.length > 1
+      ? scrimTeams[(teamIndex + 1) % scrimTeams.length]
+      : null
+
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
-
       <main className="max-w-5xl mx-auto px-3 sm:px-4 py-8 sm:py-12">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
           <div>
@@ -175,7 +180,7 @@ export default async function ScrimsPage({
           ].map((t) => (
             <Link
               key={t.id}
-              href={`/scrims?tab=${t.id}`}
+              href={`/scrims?tab=${t.id}${mainTeam ? `&team=${mainTeam.id}` : ""}`}
               className={`px-4 py-2 rounded-xl text-sm font-medium shrink-0 transition ${
                 currentTab === t.id
                   ? "bg-[#FF5C00] text-black"
@@ -192,6 +197,30 @@ export default async function ScrimsPage({
             <div className="lg:col-span-2 bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 sm:p-6">
               {mainTeam ? (
                 <>
+                  <div className="flex items-center gap-2 mb-4">
+                    {prevTeam && (
+                      <Link
+                        href={`/scrims?tab=hub&team=${prevTeam.id}`}
+                        className="w-9 h-9 rounded-xl border border-[#1c1c28] flex items-center justify-center text-gray-400 hover:text-white hover:border-[#FF5C00]/50"
+                      >
+                        ←
+                      </Link>
+                    )}
+                    <div className="flex-1 text-center text-xs text-gray-500">
+                      {scrimTeams.length > 1
+                        ? `Team ${teamIndex + 1} of ${scrimTeams.length}`
+                        : "Your scrim team"}
+                    </div>
+                    {nextTeam && (
+                      <Link
+                        href={`/scrims?tab=hub&team=${nextTeam.id}`}
+                        className="w-9 h-9 rounded-xl border border-[#1c1c28] flex items-center justify-center text-gray-400 hover:text-white hover:border-[#FF5C00]/50"
+                      >
+                        →
+                      </Link>
+                    )}
+                  </div>
+
                   <div className="flex items-center gap-4 mb-6">
                     {mainTeam.avatar_url ? (
                       <img
@@ -282,11 +311,8 @@ export default async function ScrimsPage({
                 className="block bg-gradient-to-br from-[#FF5C00]/20 to-[#FF8A00]/5 border border-[#FF5C00]/40 rounded-2xl p-5 hover:border-[#FF5C00] transition"
               >
                 <div className="text-lg font-bold mb-1">Post a Scrim</div>
-                <div className="text-xs text-gray-400">
-                  Open or private · schedule · live draft
-                </div>
+                <div className="text-xs text-gray-400">Open or private · schedule · live draft</div>
               </Link>
-
               <Link
                 href="/scrims?tab=open"
                 className="block bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 hover:border-[#FF5C00]/40 transition"
@@ -294,17 +320,13 @@ export default async function ScrimsPage({
                 <div className="text-lg font-bold mb-1">Find Scrims</div>
                 <div className="text-xs text-gray-400">Open challenges from other teams</div>
               </Link>
-
               <Link
                 href="/scrims?tab=yours"
                 className="block bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 hover:border-[#FF5C00]/40 transition"
               >
                 <div className="text-lg font-bold mb-1">Your Scrims</div>
-                <div className="text-xs text-gray-400">
-                  Accepted, drafting, live — whole team can open
-                </div>
+                <div className="text-xs text-gray-400">All phases · whole team can open</div>
               </Link>
-
               <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
                 <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">
                   Season finale
@@ -338,26 +360,15 @@ export default async function ScrimsPage({
         )}
 
         {currentTab === "drafts" && (
-          <div className="text-center py-16">
-            <p className="text-gray-400 mb-2 font-medium">Draft Only</p>
-            <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
-              Invite someone to draft. Does <strong className="text-white">not</strong> affect
-              team record or ladder.
-            </p>
-            <Link
-              href="/scrims/draft-only"
-              className="btn-primary px-6 py-2.5 rounded-xl text-sm inline-block"
-            >
-              Start Draft Only
-            </Link>
+          <div className="text-center py-16 text-gray-500">
+            Draft Only — coming next after report/XP
           </div>
         )}
 
         {currentTab === "ladder" && (
           <div className="text-center py-16 text-gray-500">
-            Scrim ladder ranked by win % · Top 16 qualify for{" "}
+            Scrim ladder · Top 16 →{" "}
             <span className="text-[#FF5C00] font-medium">Citadel Apex</span>
-            <div className="text-xs mt-2">Goes live when scrims are completed</div>
           </div>
         )}
       </main>

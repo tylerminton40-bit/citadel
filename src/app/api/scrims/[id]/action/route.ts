@@ -161,5 +161,105 @@ export async function POST(
     return NextResponse.json(final)
   }
 
+  // ---- POST CODE ----
+  if (action === "code") {
+    if (!["live", "drafting"].includes(scrim.status)) {
+      return NextResponse.json({ error: "status" }, { status: 400 })
+    }
+    if (!isCreator && !isOppCap) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 })
+    }
+    // Only host captain posts code
+    const hostTeam = scrim.host_team_id
+    const myTeam = isCreator ? scrim.creator_team_id : scrim.opponent_team_id
+    if (myTeam !== hostTeam) {
+      return NextResponse.json({ error: "not_host" }, { status: 403 })
+    }
+    const code = (body.code as string)?.trim()
+    if (!code) return NextResponse.json({ error: "code" }, { status: 400 })
+    await supabase.from("scrims").update({ private_code: code }).eq("id", id)
+    const { data: final } = await supabase.from("scrims").select("*").eq("id", id).single()
+    return NextResponse.json(final)
+  }
+
+  // ---- REPORT ----
+  if (action === "report") {
+    if (scrim.status !== "live") {
+      return NextResponse.json({ error: "status" }, { status: 400 })
+    }
+    if (!isCreator && !isOppCap) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 })
+    }
+    const winner = body.winner as string // "creator" | "opponent"
+    if (winner !== "creator" && winner !== "opponent") {
+      return NextResponse.json({ error: "winner" }, { status: 400 })
+    }
+
+    const patch: Record<string, string> = {}
+    if (isCreator) patch.creator_report = winner
+    if (isOppCap) patch.opponent_report = winner
+    await supabase.from("scrims").update(patch).eq("id", id)
+
+    const { data: updated } = await supabase.from("scrims").select("*").eq("id", id).single()
+    if (!updated) return NextResponse.json({ error: "fail" }, { status: 500 })
+
+    if (updated.creator_report && updated.opponent_report) {
+      if (updated.creator_report === updated.opponent_report) {
+        const winnerTeamId =
+          updated.creator_report === "creator"
+            ? updated.creator_team_id
+            : updated.opponent_team_id
+        const loserTeamId =
+          updated.creator_report === "creator"
+            ? updated.opponent_team_id
+            : updated.creator_team_id
+
+        await supabase
+          .from("scrims")
+          .update({
+            status: "completed",
+            winner_team_id: winnerTeamId,
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+
+        // Team W/L
+        if (winnerTeamId) {
+          const { data: wt } = await supabase.from("teams").select("wins").eq("id", winnerTeamId).single()
+          if (wt) await supabase.from("teams").update({ wins: (wt.wins || 0) + 1 }).eq("id", winnerTeamId)
+        }
+        if (loserTeamId) {
+          const { data: lt } = await supabase.from("teams").select("losses").eq("id", loserTeamId).single()
+          if (lt) await supabase.from("teams").update({ losses: (lt.losses || 0) + 1 }).eq("id", loserTeamId)
+        }
+
+        // All members +60 / -40 XP
+        async function bumpTeam(teamId: string | null, won: boolean) {
+          if (!teamId) return
+          const { data: mems } = await supabase
+            .from("team_members")
+            .select("profile_id")
+            .eq("team_id", teamId)
+          for (const m of mems || []) {
+            if (won) {
+              await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: 60 })
+              await supabase.rpc("increment_wins", { profile_id: m.profile_id })
+            } else {
+              await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: -40 })
+              await supabase.rpc("increment_losses", { profile_id: m.profile_id })
+            }
+          }
+        }
+        await bumpTeam(winnerTeamId, true)
+        await bumpTeam(loserTeamId, false)
+      } else {
+        await supabase.from("scrims").update({ status: "disputed" }).eq("id", id)
+      }
+    }
+
+    const { data: final } = await supabase.from("scrims").select("*").eq("id", id).single()
+    return NextResponse.json(final)
+  }
+  
   return NextResponse.json({ error: "unknown" }, { status: 400 })
 }

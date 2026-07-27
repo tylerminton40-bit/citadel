@@ -242,3 +242,24 @@ export async function kickMember(teamId: string, memberProfileId: string) {
   revalidatePath("/teams")
   redirect("/teams")
 }
+
+export async function disbandTeam(teamId: string) {
+  const { supabase, profile } = await getProfile()
+
+  const { data: team } = await supabase
+    .from("teams")
+    .select("*")
+    .eq("id", teamId)
+    .eq("owner_id", profile.id)
+    .single()
+
+  if (!team) redirect("/teams")
+
+  await supabase.from("team_invites").delete().eq("team_id", teamId)
+  await supabase.from("team_members").delete().eq("team_id", teamId)
+  await supabase.from("teams").delete().eq("id", teamId)
+
+  revalidatePath("/teams")
+  revalidatePath("/scrims")
+  redirect("/teams")
+}

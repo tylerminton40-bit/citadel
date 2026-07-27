@@ -123,7 +123,6 @@ export async function createScrim(formData: FormData) {
 
   const teamId = formData.get("team_id") as string
   const visibility = (formData.get("visibility") as string) || "open"
-  const scheduledRaw = (formData.get("scheduled_at") as string) || ""
 
   if (!teamId) redirect("/scrims/create?error=team")
 
@@ -156,22 +155,23 @@ export async function createScrim(formData: FormData) {
     redirect("/scrims?error=team_busy")
   }
 
-  const scheduled_at = scheduledRaw ? new Date(scheduledRaw).toISOString() : null
+    const schedDate = (formData.get("sched_date") as string) || ""
+  const schedHour = formData.get("sched_hour") as string
+  const schedMinute = (formData.get("sched_minute") as string) || "00"
 
-  const { data: scrim, error } = await supabase
-    .from("scrims")
-    .insert({
-      creator_id: profile.id,
-      creator_team_id: teamId,
-      visibility: visibility === "private" ? "private" : "open",
-      status: "open",
-      scheduled_at,
-    })
-    .select()
-    .single()
-
-  if (error || !scrim) {
-    redirect("/scrims/create?error=failed")
+  let scheduled_at: string | null = null
+  if (schedDate) {
+    const h = parseInt(schedHour || "0", 10)
+    const m = parseInt(schedMinute, 10)
+    const local = new Date(
+      parseInt(schedDate.slice(0, 4), 10),
+      parseInt(schedDate.slice(5, 7), 10) - 1,
+      parseInt(schedDate.slice(8, 10), 10),
+      h,
+      m,
+      0
+    )
+    scheduled_at = local.toISOString()
   }
 
   revalidatePath("/scrims")

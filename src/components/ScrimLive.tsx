@@ -16,6 +16,9 @@ type ScrimLiveData = {
   opponent_team_id: string | null
   creator_id: string
   opponent_captain_id: string | null
+    private_code?: string | null
+  creator_report?: string | null
+  opponent_report?: string | null
 }
 
 export default function ScrimLive({
@@ -273,9 +276,77 @@ export default function ScrimLive({
           </div>
         )}
 
-        {data.status === "live" && (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 text-sm text-emerald-300 text-center">
-            Draft locked. Host steps + report come next.
+                {data.status === "live" && (
+          <div className="space-y-4">
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+              <h3 className="font-bold text-[#FF5C00] mb-2">How to play (6v6 Normal)</h3>
+              <ol className="text-sm text-gray-400 space-y-1.5 list-decimal list-inside">
+                <li>Host creates a private match in Deadlock (normal 6v6 rules)</li>
+                <li>Host posts the join code below</li>
+                <li>Everyone joins with that code</li>
+                <li>Play the series, then both captains report</li>
+              </ol>
+            </div>
+
+            <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+              <h3 className="font-bold mb-3">Match code · live</h3>
+              {data.private_code ? (
+                <div className="text-2xl font-mono font-bold text-center py-3 bg-[#08080d] rounded-xl mb-3">
+                  {data.private_code}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 mb-3 text-center">Waiting for host to post code…</p>
+              )}
+              {/* Host captain only — simplify: allow either captain for now if host unknown */}
+              {(isCreator || isOppCap) && (
+                <div className="flex gap-2">
+                  <input
+                    id="scrim-code-input"
+                    type="text"
+                    placeholder="Enter join code"
+                    className="flex-1 bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm"
+                  />
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      const el = document.getElementById("scrim-code-input") as HTMLInputElement
+                      if (el?.value) postAction({ action: "code", code: el.value })
+                    }}
+                    className="btn-primary px-4 py-2.5 rounded-xl text-sm"
+                  >
+                    Post
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {(isCreator || isOppCap) && (
+              <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-5">
+                <h3 className="font-bold mb-3">Report result</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => postAction({ action: "report", winner: "creator" })}
+                    className="py-3 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 font-medium text-sm"
+                  >
+                    {creatorName} won
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => postAction({ action: "report", winner: "opponent" })}
+                    className="py-3 rounded-xl bg-purple-500/15 border border-purple-500/40 text-purple-300 font-medium text-sm"
+                  >
+                    {opponentName} won
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  Both captains must report. Agree → +60 / −40 XP. Disagree → disputed.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
