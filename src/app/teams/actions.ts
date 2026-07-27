@@ -97,14 +97,18 @@ export async function createTeam(formData: FormData) {
     redirect("/teams/create?error=invalid")
   }
 
-  // Already on a team of this size?
+   // One normal + one scrim team allowed per size
   const { data: existing } = await supabase
     .from("team_members")
-    .select("id, team:teams(size)")
+    .select("id, team:teams(size, is_scrim)")
     .eq("profile_id", profile.id)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if (existing?.some((m: any) => m.team?.size === size)) {
+  if (
+    existing?.some(
+      (m: any) => m.team?.size === size && !!m.team?.is_scrim === isScrim
+    )
+  ) {
     redirect("/teams/create?error=already_on_size")
   }
 
