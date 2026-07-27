@@ -205,8 +205,9 @@ export async function sendMessage(matchId: string, formData: FormData) {
   revalidatePath(`/matches/${matchId}`)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function applyTeamMemberRecords(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   teamId: string | null,
   won: boolean,
   skipIds: string[] = []
@@ -223,23 +224,19 @@ async function applyTeamMemberRecords(
   for (const m of list) {
     if (skipIds.includes(m.profile_id)) continue
     if (won) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.rpc as any)("increment_xp", {
+      await supabase.rpc("increment_xp", {
         profile_id: m.profile_id,
         amount: 30,
       })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.rpc as any)("increment_wins", {
+      await supabase.rpc("increment_wins", {
         profile_id: m.profile_id,
       })
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.rpc as any)("increment_xp", {
+      await supabase.rpc("increment_xp", {
         profile_id: m.profile_id,
         amount: -20,
       })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.rpc as any)("increment_losses", {
+      await supabase.rpc("increment_losses", {
         profile_id: m.profile_id,
       })
     }
