@@ -4,10 +4,15 @@ import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import { createTicket } from "./actions"
 
-export default async function CreateTicketPage() {
+export default async function CreateTicketPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scrim?: string; match?: string }>
+}) {
+  const sp = await searchParams
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/")
+  if (!steamId) redirect("/login?next=/tickets/create")
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,9 +25,8 @@ export default async function CreateTicketPage() {
     .eq("steam_id", steamId)
     .single()
 
-  if (!profile) redirect("/")
+  if (!profile) redirect("/login?next=/tickets/create")
 
-  // Block if they already have an open ticket
   const { data: existing } = await supabase
     .from("tickets")
     .select("id")
@@ -34,36 +38,103 @@ export default async function CreateTicketPage() {
     redirect("/tickets?error=already_open")
   }
 
-  // Get their matches
   const { data: matches } = await supabase
     .from("matches")
-    .select("id, format, best_of, status, created_at, creator:profiles!matches_creator_id_fkey(steam_name), opponent:profiles!matches_opponent_id_fkey(steam_name)")
+    .select(
+      "id, format, best_of, status, created_at, creator:profiles!matches_creator_id_fkey(steam_name), opponent:profiles!matches_opponent_id_fkey(steam_name)"
+    )
     .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
     .order("created_at", { ascending: false })
     .limit(20)
 
+  // Scrims for teams this player is on
+  const { data: memberships } = await supabase
+    .from("team_members")
+    .select("team_id")
+    .eq("profile_id", profile.id)
+
+  const teamIds = (memberships || []).map((m) => m.team_id)
+  let scrims: {
+    id: string
+    status: string
+    creator_team?: { name: string; tag: string | null } | null
+    opponent_team?: { name: string; tag: string | null } | null
+  }[] = []
+
+  if (teamIds.length > 0) {
+    const { data } = await supabase
+      .from("scrims")
+      .select(
+        `id, status,
+         creator_team:teams!scrims_creator_team_id_fkey(name, tag),
+         opponent_team:teams!scrims_opponent_team_id_fkey(name, tag)`
+      )
+      .or(
+        teamIds
+          .map((tid) => `creator_team_id.eq.${tid},opponent_team_id.eq.${tid}`)
+          .join(",")
+      )
+      .in("status", ["disputed", "live", "completed", "accepted", "drafting"])
+      .order("created_at", { ascending: false })
+      .limit(20)
+
+    scrims = (data || []).map((s) => ({
+      id: s.id,
+      status: s.status,
+      creator_team: Array.isArray(s.creator_team) ? s.creator_team[0] : s.creator_team,
+      opponent_team: Array.isArray(s.opponent_team) ? s.opponent_team[0] : s.opponent_team,
+    }))
+  }
+
+  const preselectScrim = sp.scrim || ""
+  const preselectMatch = sp.match || ""
+
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
-
       <main className="max-w-xl mx-auto px-3 sm:px-4 py-8 sm:py-12">
         <h1 className="text-3xl font-bold mb-2">New Ticket</h1>
         <p className="text-gray-400 text-sm mb-8">
-          You must upload at least 1 screenshot or video as proof.
+          Link a match or scrim if this is a dispute. Upload at least 1 screenshot or video.
         </p>
 
-        <form action={createTicket} className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 space-y-6">
+        <form
+          action={createTicket}
+          className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-6 space-y-6"
+        >
           <div>
             <label className="block text-sm text-gray-400 mb-2">Related Match</label>
             <select
               name="match_id"
+              defaultValue={preselectMatch}
               className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
             >
               <option value="">No specific match</option>
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {matches?.map((m: any) => (
                 <option key={m.id} value={m.id}>
-                  {m.format} {m.best_of} • {m.status} • {m.creator?.steam_name || "?"} vs {m.opponent?.steam_name || "?"}
+                  MATCH · {m.format} {m.best_of} · {m.status} ·{" "}
+                  {m.creator?.steam_name || "?"} vs {m.opponent?.steam_name || "?"}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm text-gray-400 mb-2">Related Scrim</label>
+            <select
+              name="scrim_id"
+              defaultValue={preselectScrim}
+              className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
+            >
+              <option value="">No specific scrim</option>
+              {scrims.map((s) => (
+                <option key={s.id} value={s.id}>
+                  SCRIM · {s.status} ·{" "}
+                  {s.creator_team?.tag ? `[${s.creator_team.tag}] ` : ""}
+                  {s.creator_team?.name || "?"} vs{" "}
+                  {s.opponent_team?.tag ? `[${s.opponent_team.tag}] ` : ""}
+                  {s.opponent_team?.name || "?"}
                 </option>
               ))}
             </select>
@@ -74,7 +145,7 @@ export default async function CreateTicketPage() {
             <input
               name="subject"
               required
-              placeholder="e.g. Dispute - opponent reported wrong winner"
+              placeholder="e.g. Scrim dispute — wrong winner reported"
               className="w-full bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#FF5C00]"
             />
           </div>
@@ -90,20 +161,20 @@ export default async function CreateTicketPage() {
           </div>
 
           <div>
-  <label className="block text-sm text-gray-400 mb-2">
-    Proof (Screenshot or Video) *
-  </label>
-  <p className="text-xs text-gray-500 mb-3">
-    Max 50MB. Prefer PNG, JPG, or MP4. Some JPEGs may fail — try PNG if upload breaks.
-  </p>
-  <input
-    name="proof"
-    type="file"
-    accept="image/*,video/*"
-    required
-    className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-[#FF5C00] file:text-black file:font-medium"
-  />
-</div>
+            <label className="block text-sm text-gray-400 mb-2">
+              Proof (Screenshot or Video) *
+            </label>
+            <p className="text-xs text-gray-500 mb-3">
+              Max 50MB. Prefer PNG, JPG, or MP4.
+            </p>
+            <input
+              name="proof"
+              type="file"
+              accept="image/*,video/*"
+              required
+              className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:bg-[#FF5C00] file:text-black file:font-medium"
+            />
+          </div>
 
           <button type="submit" className="btn-primary w-full py-3 rounded-xl font-medium">
             Submit Ticket
