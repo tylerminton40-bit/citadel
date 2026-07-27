@@ -122,7 +122,27 @@ export async function createScrim(formData: FormData) {
   const { supabase, profile } = await getProfile()
 
   const teamId = formData.get("team_id") as string
-  const visibility = (formData.get("visibility") as string) || "open"
+  const visibilityRaw = (formData.get("visibility") as string) || "open"
+  const visibility = visibilityRaw === "private" ? "private" : "open"
+
+  const schedDate = (formData.get("sched_date") as string) || ""
+  const schedHour = formData.get("sched_hour") as string
+  const schedMinute = (formData.get("sched_minute") as string) || "00"
+
+  let scheduled_at: string | null = null
+  if (schedDate) {
+    const h = parseInt(schedHour || "0", 10)
+    const m = parseInt(schedMinute, 10)
+    const local = new Date(
+      parseInt(schedDate.slice(0, 4), 10),
+      parseInt(schedDate.slice(5, 7), 10) - 1,
+      parseInt(schedDate.slice(8, 10), 10),
+      h,
+      m,
+      0
+    )
+    scheduled_at = local.toISOString()
+  }
 
   if (!teamId) redirect("/scrims/create?error=team")
 
@@ -143,35 +163,31 @@ export async function createScrim(formData: FormData) {
     redirect("/scrims/create?error=not_scrim")
   }
 
-  // Only one open/accepted scrim per team
   const { data: busy } = await supabase
     .from("scrims")
     .select("id")
     .or(`creator_team_id.eq.${teamId},opponent_team_id.eq.${teamId}`)
-    .in("status", ["open", "accepted", "drafting", "live"])
+    .in("status", ["open", "accepted", "choosing", "drafting", "live"])
     .limit(1)
 
   if (busy && busy.length > 0) {
     redirect("/scrims?error=team_busy")
   }
 
-    const schedDate = (formData.get("sched_date") as string) || ""
-  const schedHour = formData.get("sched_hour") as string
-  const schedMinute = (formData.get("sched_minute") as string) || "00"
+  const { data: scrim, error } = await supabase
+    .from("scrims")
+    .insert({
+      creator_id: profile.id,
+      creator_team_id: teamId,
+      visibility,
+      status: "open",
+      scheduled_at,
+    })
+    .select()
+    .single()
 
-  let scheduled_at: string | null = null
-  if (schedDate) {
-    const h = parseInt(schedHour || "0", 10)
-    const m = parseInt(schedMinute, 10)
-    const local = new Date(
-      parseInt(schedDate.slice(0, 4), 10),
-      parseInt(schedDate.slice(5, 7), 10) - 1,
-      parseInt(schedDate.slice(8, 10), 10),
-      h,
-      m,
-      0
-    )
-    scheduled_at = local.toISOString()
+  if (error || !scrim) {
+    redirect("/scrims/create?error=failed")
   }
 
   revalidatePath("/scrims")
