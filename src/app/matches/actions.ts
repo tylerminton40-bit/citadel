@@ -212,12 +212,15 @@ async function applyTeamMemberRecords(
   skipIds: string[] = []
 ) {
   if (!teamId) return
+
   const { data: members } = await supabase
     .from("team_members")
     .select("profile_id")
     .eq("team_id", teamId)
 
-  for (const m of members || []) {
+  const list = (members || []) as { profile_id: string }[]
+
+  for (const m of list) {
     if (skipIds.includes(m.profile_id)) continue
     if (won) {
       await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: 30 })
