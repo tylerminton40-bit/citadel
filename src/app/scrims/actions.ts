@@ -4,6 +4,99 @@ import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
+import { DRAFT_STEPS, type DraftState } from "@/lib/deadlock-heroes"
+
+export async function draftSelect(scrimId: string, formData: FormData) {
+  const { supabase, profile } = await getProfile()
+  const heroId = formData.get("hero_id") as string
+  if (!heroId) return
+
+  const { data: scrim } = await supabase
+    .from("scrims")
+    .select("*")
+    .eq("id", scrimId)
+    .eq("status", "drafting")
+    .single()
+
+  if (!scrim) redirect(`/scrims/${scrimId}`)
+
+  const isCreatorCap = profile.id === scrim.creator_id
+  const isOppCap = profile.id === scrim.opponent_captain_id
+  if (!isCreatorCap && !isOppCap) redirect(`/scrims/${scrimId}`)
+
+  const myTeamId = isCreatorCap ? scrim.creator_team_id : scrim.opponent_team_id
+  const state = (scrim.draft_state || {}) as DraftState
+
+  if (state.phase === "done") redirect(`/scrims/${scrimId}`)
+  if (state.turn_team_id && state.turn_team_id !== myTeamId) {
+    redirect(`/scrims/${scrimId}`)
+  }
+
+  const taken = new Set([
+    ...(state.bans || []).map((b) => b.heroId),
+    ...(state.picks || []).map((p) => p.heroId),
+  ])
+  if (taken.has(heroId)) redirect(`/scrims/${scrimId}`)
+
+  const stepIndex = state.step ?? 0
+  const step = DRAFT_STEPS[stepIndex]
+  if (!step) redirect(`/scrims/${scrimId}`)
+
+  const firstBanId = scrim.first_ban_team_id
+  const otherId =
+    firstBanId === scrim.creator_team_id
+      ? scrim.opponent_team_id
+      : scrim.creator_team_id
+
+  const expectedTeam = step.side === "first_ban" ? firstBanId : otherId
+  if (myTeamId !== expectedTeam) redirect(`/scrims/${scrimId}`)
+
+  const bans = [...(state.bans || [])]
+  const picks = [...(state.picks || [])]
+
+  if (step.type === "ban") {
+    bans.push({ heroId, teamId: myTeamId })
+  } else {
+    picks.push({ heroId, teamId: myTeamId })
+  }
+
+  let withinStep = (state.withinStep || 0) + 1
+  let nextStep = stepIndex
+  let phase: DraftState["phase"] = step.type
+  let turn_team_id: string | null = myTeamId
+
+  if (withinStep >= step.count) {
+    withinStep = 0
+    nextStep = stepIndex + 1
+    if (nextStep >= DRAFT_STEPS.length) {
+      phase = "done"
+      turn_team_id = null
+    } else {
+      const ns = DRAFT_STEPS[nextStep]
+      phase = ns.type
+      turn_team_id = ns.side === "first_ban" ? firstBanId : otherId
+    }
+  }
+
+  const newState: DraftState = {
+    step: nextStep >= DRAFT_STEPS.length ? stepIndex : nextStep,
+    withinStep,
+    bans,
+    picks,
+    phase,
+    turn_team_id,
+  }
+
+  const patch: Record<string, unknown> = { draft_state: newState }
+  if (phase === "done") {
+    patch.status = "live"
+  }
+
+  await supabase.from("scrims").update(patch).eq("id", scrimId)
+
+  revalidatePath(`/scrims/${scrimId}`)
+  redirect(`/scrims/${scrimId}`)
+}
 
 async function getProfile() {
   const cookieStore = await cookies()
@@ -241,12 +334,13 @@ export async function chooseHostOrFirstBan(scrimId: string, formData: FormData) 
       first_ban_team_id,
       status: "drafting",
       draft_state: {
-        step: 0,
-        bans: [],
-        picks: [],
-        phase: "ban",
-        turn_team_id: first_ban_team_id,
-      },
+  step: 0,
+  withinStep: 0,
+  bans: [],
+  picks: [],
+  phase: "ban",
+  turn_team_id: first_ban_team_id,
+},
     })
     .eq("id", scrimId)
 
