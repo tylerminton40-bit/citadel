@@ -6,6 +6,26 @@ import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { DRAFT_STEPS, type DraftState } from "@/lib/deadlock-heroes"
 
+async function getProfile() {
+  const cookieStore = await cookies()
+  const steamId = cookieStore.get("citadel_steam_id")?.value
+  if (!steamId) redirect("/login?next=/scrims")
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, steam_name")
+    .eq("steam_id", steamId)
+    .single()
+
+  if (!profile) redirect("/login?next=/scrims")
+  return { supabase, profile }
+}
+
 export async function draftSelect(scrimId: string, formData: FormData) {
   const { supabase, profile } = await getProfile()
   const heroId = formData.get("hero_id") as string
@@ -47,13 +67,11 @@ export async function draftSelect(scrimId: string, formData: FormData) {
     firstBanId === scrim.creator_team_id
       ? scrim.opponent_team_id
       : scrim.creator_team_id
-
   const expectedTeam = step.side === "first_ban" ? firstBanId : otherId
   if (myTeamId !== expectedTeam) redirect(`/scrims/${scrimId}`)
 
   const bans = [...(state.bans || [])]
   const picks = [...(state.picks || [])]
-
   if (step.type === "ban") {
     bans.push({ heroId, teamId: myTeamId })
   } else {
@@ -93,50 +111,18 @@ export async function draftSelect(scrimId: string, formData: FormData) {
   }
 
   await supabase.from("scrims").update(patch).eq("id", scrimId)
-
   revalidatePath(`/scrims/${scrimId}`)
   redirect(`/scrims/${scrimId}`)
-}
-
-async function getProfile() {
-  const cookieStore = await cookies()
-  const steamId = cookieStore.get("citadel_steam_id")?.value
-  if (!steamId) redirect("/login?next=/scrims")
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, steam_name")
-    .eq("steam_id", steamId)
-    .single()
-
-  if (!profile) redirect("/login?next=/scrims")
-  return { supabase, profile }
 }
 
 export async function createScrim(formData: FormData) {
   const { supabase, profile } = await getProfile()
 
   const teamId = formData.get("team_id") as string
-    if (team.owner_id !== profile.id) {
-    redirect("/scrims/create?error=not_captain")
-  }
+  if (!teamId) redirect("/scrims/create?error=team")
 
-  const { data: members } = await supabase
-    .from("team_members")
-    .select("id")
-    .eq("team_id", teamId)
-
-  if ((members?.length || 0) < 6) {
-    redirect("/scrims/create?error=need_6")
-  }
   const visibilityRaw = (formData.get("visibility") as string) || "open"
   const visibility = visibilityRaw === "private" ? "private" : "open"
-
   const schedDate = (formData.get("sched_date") as string) || ""
   const schedHour = formData.get("sched_hour") as string
   const schedMinute = (formData.get("sched_minute") as string) || "00"
@@ -156,23 +142,26 @@ export async function createScrim(formData: FormData) {
     scheduled_at = local.toISOString()
   }
 
-  if (!teamId) redirect("/scrims/create?error=team")
-
-  const { data: membership } = await supabase
-    .from("team_members")
-    .select("role, team:teams(*)")
-    .eq("profile_id", profile.id)
-    .eq("team_id", teamId)
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id, owner_id, is_scrim")
+    .eq("id", teamId)
     .single()
-
-  const team = membership?.team
-    ? Array.isArray(membership.team)
-      ? membership.team[0]
-      : membership.team
-    : null
 
   if (!team || !team.is_scrim) {
     redirect("/scrims/create?error=not_scrim")
+  }
+  if (team.owner_id !== profile.id) {
+    redirect("/scrims/create?error=not_captain")
+  }
+
+  const { data: members } = await supabase
+    .from("team_members")
+    .select("id")
+    .eq("team_id", teamId)
+
+  if ((members?.length || 0) < 6) {
+    redirect("/scrims/create?error=need_6")
   }
 
   const { data: busy } = await supabase
@@ -222,8 +211,8 @@ export async function cancelScrim(scrimId: string) {
 
 export async function acceptScrim(scrimId: string, formData: FormData) {
   const { supabase, profile } = await getProfile()
-  const teamId = formData.get("team_id") as string
 
+  const teamId = formData.get("team_id") as string
   if (!teamId) redirect(`/scrims/${scrimId}?error=team`)
 
   const { data: scrim } = await supabase
@@ -234,21 +223,22 @@ export async function acceptScrim(scrimId: string, formData: FormData) {
     .single()
 
   if (!scrim) redirect("/scrims")
-
   if (scrim.creator_team_id === teamId) {
     redirect(`/scrims/${scrimId}?error=own_team`)
   }
 
-  const { data: membership } = await supabase
-    .from("team_members")
-    .select("team:teams(*)")
-    .eq("profile_id", profile.id)
-    .eq("team_id", teamId)
+  const { data: team } = await supabase
+    .from("teams")
+    .select("id, owner_id, is_scrim")
+    .eq("id", teamId)
     .single()
-	
-	  // team must be scrim, user is owner, 6 members
-  if (!team.is_scrim) redirect(`/scrims/${scrimId}?error=not_scrim`)
-  if (team.owner_id !== profile.id) redirect(`/scrims/${scrimId}?error=not_captain`)
+
+  if (!team || !team.is_scrim) {
+    redirect(`/scrims/${scrimId}?error=not_scrim`)
+  }
+  if (team.owner_id !== profile.id) {
+    redirect(`/scrims/${scrimId}?error=not_captain`)
+  }
 
   const { data: members } = await supabase
     .from("team_members")
@@ -257,16 +247,6 @@ export async function acceptScrim(scrimId: string, formData: FormData) {
 
   if ((members?.length || 0) < 6) {
     redirect(`/scrims/${scrimId}?error=need_6`)
-  }
-
-  const team = membership?.team
-    ? Array.isArray(membership.team)
-      ? membership.team[0]
-      : membership.team
-    : null
-
-  if (!team || !team.is_scrim) {
-    redirect(`/scrims/${scrimId}?error=not_scrim`)
   }
 
   const { data: busy } = await supabase
@@ -314,10 +294,7 @@ export async function setCaptainReady(scrimId: string) {
   const isOpponent = profile.id === scrim.opponent_captain_id
   if (!isCreator && !isOpponent) redirect(`/scrims/${scrimId}`)
 
-  const patch = isCreator
-    ? { creator_ready: true }
-    : { opponent_ready: true }
-
+  const patch = isCreator ? { creator_ready: true } : { opponent_ready: true }
   await supabase.from("scrims").update(patch).eq("id", scrimId)
 
   const { data: updated } = await supabase
@@ -326,12 +303,8 @@ export async function setCaptainReady(scrimId: string) {
     .eq("id", scrimId)
     .single()
 
-  // Both ready → move to choosing host / first ban (opponent captain chooses)
   if (updated?.creator_ready && updated?.opponent_ready) {
-    await supabase
-      .from("scrims")
-      .update({ status: "choosing" })
-      .eq("id", scrimId)
+    await supabase.from("scrims").update({ status: "choosing" }).eq("id", scrimId)
   }
 
   revalidatePath(`/scrims/${scrimId}`)
@@ -340,7 +313,7 @@ export async function setCaptainReady(scrimId: string) {
 
 export async function chooseHostOrFirstBan(scrimId: string, formData: FormData) {
   const { supabase, profile } = await getProfile()
-  const choice = formData.get("choice") as string // "host" | "first_ban"
+  const choice = formData.get("choice") as string
 
   const { data: scrim } = await supabase
     .from("scrims")
@@ -350,8 +323,6 @@ export async function chooseHostOrFirstBan(scrimId: string, formData: FormData) 
     .single()
 
   if (!scrim) redirect(`/scrims/${scrimId}`)
-
-  // Accepting captain chooses
   if (profile.id !== scrim.opponent_captain_id) {
     redirect(`/scrims/${scrimId}`)
   }
@@ -363,7 +334,6 @@ export async function chooseHostOrFirstBan(scrimId: string, formData: FormData) 
     host_team_id = scrim.opponent_team_id
     first_ban_team_id = scrim.creator_team_id
   } else {
-    // first_ban
     host_team_id = scrim.creator_team_id
     first_ban_team_id = scrim.opponent_team_id
   }
@@ -375,13 +345,13 @@ export async function chooseHostOrFirstBan(scrimId: string, formData: FormData) 
       first_ban_team_id,
       status: "drafting",
       draft_state: {
-  step: 0,
-  withinStep: 0,
-  bans: [],
-  picks: [],
-  phase: "ban",
-  turn_team_id: first_ban_team_id,
-},
+        step: 0,
+        withinStep: 0,
+        bans: [],
+        picks: [],
+        phase: "ban",
+        turn_team_id: first_ban_team_id,
+      },
     })
     .eq("id", scrimId)
 
