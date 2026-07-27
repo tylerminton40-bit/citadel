@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 
+const MATCH_SELECT = `
+  *,
+  creator:profiles!matches_creator_id_fkey(steam_name, avatar_url),
+  opponent:profiles!matches_opponent_id_fkey(steam_name, avatar_url),
+  creator_team:teams!matches_creator_team_id_fkey(name, tag),
+  opponent_team:teams!matches_opponent_team_id_fkey(name, tag)
+`
+
 export async function GET(request: NextRequest) {
   const tab = request.nextUrl.searchParams.get("tab") || "open"
   const cookieStore = await cookies()
@@ -25,7 +33,7 @@ export async function GET(request: NextRequest) {
   if (tab === "open") {
     const { data: matches } = await supabase
       .from("matches")
-      .select("*, creator:profiles!matches_creator_id_fkey(steam_name, avatar_url), opponent:profiles!matches_opponent_id_fkey(steam_name, avatar_url)")
+      .select(MATCH_SELECT)
       .eq("status", "open")
       .order("created_at", { ascending: false })
       .limit(30)
@@ -38,7 +46,6 @@ export async function GET(request: NextRequest) {
 
   // "yours" tab — captain matches + team matches
   if (tab === "yours" && profileId) {
-    // Teams this player is on
     const { data: memberships } = await supabase
       .from("team_members")
       .select("team_id")
@@ -46,10 +53,9 @@ export async function GET(request: NextRequest) {
 
     const teamIds = (memberships || []).map((m) => m.team_id)
 
-    // Captain matches
     const { data: captainMatches } = await supabase
       .from("matches")
-      .select("*, creator:profiles!matches_creator_id_fkey(steam_name, avatar_url), opponent:profiles!matches_opponent_id_fkey(steam_name, avatar_url)")
+      .select(MATCH_SELECT)
       .or(`creator_id.eq.${profileId},opponent_id.eq.${profileId}`)
       .order("created_at", { ascending: false })
       .limit(50)
@@ -59,7 +65,7 @@ export async function GET(request: NextRequest) {
     if (teamIds.length > 0) {
       const { data } = await supabase
         .from("matches")
-        .select("*, creator:profiles!matches_creator_id_fkey(steam_name, avatar_url), opponent:profiles!matches_opponent_id_fkey(steam_name, avatar_url)")
+        .select(MATCH_SELECT)
         .or(
           teamIds
             .map((id) => `creator_team_id.eq.${id},opponent_team_id.eq.${id}`)
@@ -71,7 +77,6 @@ export async function GET(request: NextRequest) {
       teamMatches = data || []
     }
 
-    // Merge + dedupe by id
     const map = new Map<string, NonNullable<typeof captainMatches>[number]>()
     for (const m of [...(captainMatches || []), ...(teamMatches || [])]) {
       map.set(m.id, m)

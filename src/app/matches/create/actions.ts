@@ -4,20 +4,24 @@ import { cookies } from "next/headers"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 
+const SIZE_MAP: Record<string, number> = {
+  "1v1": 1,
+  "2v2": 2,
+  "3v3": 3,
+  "4v4": 4,
+  "6v6": 6,
+}
+
 export async function createMatch(formData: FormData) {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) redirect("/login?next=/matches/create")
 
   const format = formData.get("format") as string
-  const bestOf = formData.get("best_of") as string
-  const region = formData.get("region") as string
+  const bestOf = (formData.get("best_of") as string) || "Bo1"
+  const region = (formData.get("region") as string) || "NA East"
   const ruleset = (formData.get("ruleset") as string) || "Street Brawl"
   const teamId = (formData.get("team_id") as string) || null
-  const map = ruleset.startsWith("Normal") ? "Normal" : "Street Brawl"
-
-  const needsTeam = ["2v2", "3v3", "4v4", "6v6"].includes(format)
-  const sizeMap: Record<string, number> = { "2v2": 2, "3v3": 3, "4v4": 4, "6v6": 6 }
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,15 +33,15 @@ export async function createMatch(formData: FormData) {
     .select("id")
     .eq("steam_id", steamId)
     .single()
+  if (!profile) redirect("/")
 
-  if (!profile) redirect("/login?next=/matches/create")
-
-  // Block only if they have a match they haven't reported yet
+  // Already in an active match as captain?
   const { data: existing } = await supabase
     .from("matches")
-    .select("id, creator_id, opponent_id, creator_report, opponent_report, status")
+    .select("id, creator_report, opponent_report, status, creator_id, opponent_id")
     .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
     .in("status", ["open", "accepted"])
+    .limit(10)
 
   const stillBusy = (existing || []).some((m) => {
     if (m.status === "open") return true
@@ -45,41 +49,51 @@ export async function createMatch(formData: FormData) {
     if (m.opponent_id === profile.id && !m.opponent_report) return true
     return false
   })
+  if (stillBusy) redirect("/matches?error=already_in_match")
 
-  if (stillBusy) {
-    redirect("/matches?error=already_in_match")
-  }
+  const needed = SIZE_MAP[format] || 1
 
-  let creatorTeamId = null
+  // Team formats require a normal (non-scrim) team you captain, full roster
+  if (needed > 1) {
+    if (!teamId) redirect("/matches/create?error=need_team")
 
-  if (needsTeam) {
-    if (!teamId) {
-      redirect("/matches/create?error=team_required")
-    }
-
-    const { data: membership } = await supabase
-      .from("team_members")
-      .select("*, team:teams(*)")
-      .eq("profile_id", profile.id)
-      .eq("team_id", teamId)
+    const { data: team } = await supabase
+      .from("teams")
+      .select("id, owner_id, is_scrim, size")
+      .eq("id", teamId)
       .single()
 
-    if (!membership || membership.team.size !== sizeMap[format]) {
-      redirect("/matches/create?error=wrong_team_size")
-    }
+    if (!team) redirect("/matches/create?error=team")
+    if (team.is_scrim) redirect("/matches/create?error=scrim_team")
+    if (team.owner_id !== profile.id) redirect("/matches/create?error=not_captain")
 
-    creatorTeamId = teamId
+    const { data: members } = await supabase
+      .from("team_members")
+      .select("id")
+      .eq("team_id", teamId)
+
+    const count = members?.length || 0
+    if (count < needed) {
+      redirect(`/matches/create?error=roster_${needed}`)
+    }
   }
+
+  const map = ruleset.startsWith("Street")
+    ? "Street Brawl"
+    : format === "6v6"
+    ? "Normal Map"
+    : "Normal Map"
 
   await supabase.from("matches").insert({
     creator_id: profile.id,
-    creator_team_id: creatorTeamId,
     format,
     best_of: bestOf,
     region,
     ruleset,
     map,
     status: "open",
+    creator_team_id: needed > 1 ? teamId : null,
+    host_id: profile.id,
   })
 
   redirect("/matches")

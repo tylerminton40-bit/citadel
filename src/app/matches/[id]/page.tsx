@@ -72,6 +72,22 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     opponentMembers = (data as unknown as TeamMember[]) || []
   }
 
+  // Teams the current user captains (normal only) for accept dropdown
+  let myCaptainTeams: { id: string; name: string; tag: string | null; size: number }[] = []
+  if (profile?.id) {
+    const { data: owned } = await supabase
+      .from("teams")
+      .select("id, name, tag, size, is_scrim")
+      .eq("owner_id", profile.id)
+      .eq("is_scrim", false)
+    myCaptainTeams = (owned || []).map((t) => ({
+      id: t.id,
+      name: t.name,
+      tag: t.tag,
+      size: t.size,
+    }))
+  }
+
   const { data: messages } = await supabase
     .from("match_messages")
     .select("*, sender:profiles(steam_name)")
@@ -105,16 +121,31 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     isOnOpponentTeam = !!data
   }
 
-  const isParticipant =
-    isCaptain || isOnCreatorTeam || isOnOpponentTeam
-
+  const isParticipant = isCaptain || isOnCreatorTeam || isOnOpponentTeam
   const isOpen = match.status === "open"
   const isAccepted = match.status === "accepted"
   const isCompleted = match.status === "completed"
   const isPendingResult = isAccepted && (match.creator_report || match.opponent_report)
+
   const isNormal = match.ruleset?.startsWith("Normal")
-  const isSmallFormat = ["1v1", "2v2", "3v3"].includes(match.format)
+  const isStreet = match.ruleset?.startsWith("Street")
+  const isSmallFormat = ["1v1", "2v2", "3v3", "4v4"].includes(match.format)
   const showNormalSteps = isNormal && isSmallFormat && isAccepted
+  const showPrivateCodeSteps =
+    isAccepted && (isStreet || match.format === "6v6" || (isNormal && match.format === "6v6"))
+
+  const neededSize =
+    match.format === "2v2"
+      ? 2
+      : match.format === "3v3"
+      ? 3
+      : match.format === "4v4"
+      ? 4
+      : match.format === "6v6"
+      ? 6
+      : 1
+
+  const acceptTeams = myCaptainTeams.filter((t) => t.size === neededSize)
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
@@ -125,22 +156,84 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           <div className="text-xs sm:text-sm text-gray-400 truncate">
             {match.format} • {match.best_of} • {match.region} • {match.ruleset}
           </div>
-          <div className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium shrink-0 ${
-            isOpen ? "bg-yellow-500/20 text-yellow-400" :
-            match.status === "disputed" ? "bg-red-500/20 text-red-400" :
-            isCompleted ? "bg-blue-500/20 text-blue-400" :
-            isPendingResult ? "bg-orange-500/20 text-orange-400" :
-            isAccepted ? "bg-emerald-500/20 text-emerald-400" :
-            "bg-gray-500/20 text-gray-400"
-          }`}>
-            {isOpen ? "OPEN" :
-             match.status === "disputed" ? "DISPUTED" :
-             isCompleted ? "COMPLETED" :
-             isPendingResult ? "PENDING RESULT" :
-             isAccepted ? "ACCEPTED" :
-             match.status.toUpperCase()}
+          <div
+            className={`px-2.5 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-medium shrink-0 ${
+              isOpen
+                ? "bg-yellow-500/20 text-yellow-400"
+                : match.status === "disputed"
+                ? "bg-red-500/20 text-red-400"
+                : isCompleted
+                ? "bg-blue-500/20 text-blue-400"
+                : isPendingResult
+                ? "bg-orange-500/20 text-orange-400"
+                : isAccepted
+                ? "bg-emerald-500/20 text-emerald-400"
+                : "bg-gray-500/20 text-gray-400"
+            }`}
+          >
+            {isOpen
+              ? "OPEN"
+              : match.status === "disputed"
+              ? "DISPUTED"
+              : isCompleted
+              ? "COMPLETED"
+              : isPendingResult
+              ? "PENDING RESULT"
+              : isAccepted
+              ? "ACCEPTED"
+              : match.status.toUpperCase()}
           </div>
         </div>
+
+        {/* Accept / Cancel high up — more visible */}
+        {isOpen && !isCreator && profile && (
+          <div className="mb-6 p-4 rounded-2xl border border-[#FF5C00]/40 bg-[#FF5C00]/10">
+            {neededSize > 1 ? (
+              acceptTeams.length > 0 ? (
+                <form action={acceptMatch.bind(null, id)} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                  <select
+                    name="team_id"
+                    required
+                    className="flex-1 bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-3 text-sm"
+                  >
+                    {acceptTeams.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.tag ? `[${t.tag}] ` : ""}
+                        {t.name} · {t.size}v{t.size}
+                      </option>
+                    ))}
+                  </select>
+                  <button type="submit" className="btn-primary px-8 py-3 rounded-xl font-bold">
+                    Accept Match
+                  </button>
+                </form>
+              ) : (
+                <p className="text-sm text-center text-gray-300">
+                  You need a normal (non-scrim) team you captain with {neededSize} players to accept.
+                </p>
+              )
+            ) : (
+              <form action={acceptMatch.bind(null, id)} className="text-center">
+                <button type="submit" className="btn-primary px-10 py-3 rounded-xl font-bold">
+                  Accept Match
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
+        {isOpen && isCreator && (
+          <div className="mb-6 text-center">
+            <form action={cancelMatch.bind(null, id)}>
+              <button
+                type="submit"
+                className="px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition"
+              >
+                Cancel Match
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* Head to Head */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl sm:rounded-3xl p-5 sm:p-8 mb-6 sm:mb-8">
@@ -149,7 +242,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               {match.creator_team ? (
                 <>
                   <div className="font-bold text-sm sm:text-lg text-[#FF5C00] mb-1">
-                    {match.creator_team.tag ? `[${match.creator_team.tag}] ` : ""}{match.creator_team.name}
+                    {match.creator_team.tag ? `[${match.creator_team.tag}] ` : ""}
+                    {match.creator_team.name}
                   </div>
                   <div className="text-xs text-gray-400 mb-3">
                     <span className="text-emerald-400">{match.creator_team.wins}W</span>
@@ -169,16 +263,24 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                       </div>
                     ))}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium mt-2">Host • Hidden King</div>
+                  <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium mt-2">
+                    Host • Hidden King
+                  </div>
                 </>
               ) : (
                 <>
                   {match.creator?.avatar_url ? (
-                    <img src={match.creator.avatar_url} alt="" className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-[#FF5C00]" />
+                    <img
+                      src={match.creator.avatar_url}
+                      alt=""
+                      className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-[#FF5C00]"
+                    />
                   ) : (
                     <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 bg-[#1c1c28]" />
                   )}
-                  <div className="font-bold text-sm sm:text-lg truncate px-1">{match.creator?.steam_name || "Unknown"}</div>
+                  <div className="font-bold text-sm sm:text-lg truncate px-1">
+                    {match.creator?.steam_name || "Unknown"}
+                  </div>
                   <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Host</div>
                   <div className="text-[10px] sm:text-xs text-[#FF5C00] font-medium">Hidden King</div>
                 </>
@@ -196,7 +298,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               {match.opponent_team ? (
                 <>
                   <div className="font-bold text-sm sm:text-lg text-purple-400 mb-1">
-                    {match.opponent_team.tag ? `[${match.opponent_team.tag}] ` : ""}{match.opponent_team.name}
+                    {match.opponent_team.tag ? `[${match.opponent_team.tag}] ` : ""}
+                    {match.opponent_team.name}
                   </div>
                   <div className="text-xs text-gray-400 mb-3">
                     <span className="text-emerald-400">{match.opponent_team.wins}W</span>
@@ -216,16 +319,24 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                       </div>
                     ))}
                   </div>
-                  <div className="text-[10px] sm:text-xs text-purple-400 font-medium mt-2">Challenger • Archmother</div>
+                  <div className="text-[10px] sm:text-xs text-purple-400 font-medium mt-2">
+                    Challenger • Archmother
+                  </div>
                 </>
               ) : match.opponent ? (
                 <>
                   {match.opponent.avatar_url ? (
-                    <img src={match.opponent.avatar_url} alt="" className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-purple-500" />
+                    <img
+                      src={match.opponent.avatar_url}
+                      alt=""
+                      className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 border-2 sm:border-4 border-purple-500"
+                    />
                   ) : (
                     <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full mx-auto mb-2 sm:mb-3 bg-[#1c1c28]" />
                   )}
-                  <div className="font-bold text-sm sm:text-lg truncate px-1">{match.opponent.steam_name}</div>
+                  <div className="font-bold text-sm sm:text-lg truncate px-1">
+                    {match.opponent.steam_name}
+                  </div>
                   <div className="text-[10px] sm:text-sm text-gray-400 mt-0.5">Challenger</div>
                   <div className="text-[10px] sm:text-xs text-purple-400 font-medium">Archmother</div>
                 </>
@@ -247,32 +358,39 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
           <h3 className="font-bold mb-3 sm:mb-4 text-[#FF5C00] text-sm sm:text-base">Match Info</h3>
           <div className="grid grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">
-            <div className="flex justify-between"><span className="text-gray-400">Format</span><span>{match.format}</span></div>
-            <div className="flex justify-between"><span className="text-gray-400">Best Of</span><span>{match.best_of}</span></div>
-            <div className="flex justify-between"><span className="text-gray-400">Region</span><span>{match.region}</span></div>
-            <div className="flex justify-between"><span className="text-gray-400">Mode</span><span>{match.ruleset}</span></div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Format</span>
+              <span>{match.format}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Best Of</span>
+              <span>{match.best_of}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Region</span>
+              <span>{match.region}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Mode</span>
+              <span>{match.ruleset}</span>
+            </div>
           </div>
         </div>
 
         {/* Instructions */}
         {showNormalSteps ? (
-          <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 space-y-5">
-            <div>
-              <h3 className="font-bold mb-2 text-[#FF5C00] text-sm sm:text-base">Rules</h3>
-              <ul className="text-xs sm:text-sm text-gray-400 space-y-1 list-disc list-inside">
-                <li>One-lane map</li>
-                <li>No Urn — decays instantly if picked up</li>
-                <li>No Rift — never spawns</li>
-              </ul>
-            </div>
-
+          <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6 space-y-6">
             {(isOpponent || isOnOpponentTeam) && (
               <div>
-                <h3 className="font-bold mb-2 text-purple-400 text-sm sm:text-base">Challenger Instructions</h3>
+                <h3 className="font-bold mb-2 text-purple-400 text-sm sm:text-base">
+                  Challenger Instructions
+                </h3>
                 <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 list-decimal list-inside">
                   <li>Wait for the host to post the connect code below</li>
                   <li>Open console and paste the connect code</li>
-                  <li>Choose <strong className="text-white">Archmother</strong> and your character</li>
+                  <li>
+                    Choose <strong className="text-white">Archmother</strong> and your character
+                  </li>
                   <li>Wait for host to unpause</li>
                 </ol>
               </div>
@@ -284,7 +402,9 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
                 <div className="bg-[#08080d] rounded-xl p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-gray-300">Step 1 — Join the map (leave console open)</span>
+                    <span className="text-xs font-bold text-gray-300">
+                      Step 1 — Join the map (leave console open)
+                    </span>
                     <CopyButton text="map dl_midtown" />
                   </div>
                   <code className="text-xs text-[#FF5C00] break-all">map dl_midtown</code>
@@ -298,14 +418,19 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                   <code className="text-xs text-[#FF5C00] break-all">
                     sv_cheats 1; citadel_pause; status; citadel_active_lane 4
                   </code>
-                  <p className="text-[11px] text-gray-500 mt-2">This pauses the game so your opponent can join.</p>
+                  <p className="text-[11px] text-gray-500 mt-2">
+                    This pauses the game so your opponent can join.
+                  </p>
                 </div>
 
                 <div className="bg-[#08080d] rounded-xl p-4">
-                  <div className="text-xs font-bold text-gray-300 mb-2">Step 3 — Post your connect code</div>
+                  <div className="text-xs font-bold text-gray-300 mb-2">
+                    Step 3 — Post your connect code
+                  </div>
                   <p className="text-[11px] text-gray-500 mb-3">
-                    From the <code className="text-gray-400">status</code> output, copy your ID including the brackets.
-                    <strong className="text-white"> The whole thing must be copied</strong>, like:
+                    From the <code className="text-gray-400">status</code> output, copy your ID
+                    including the brackets.{" "}
+                    <strong className="text-white">The whole thing must be copied</strong>, like:
                   </p>
                   <code className="block text-xs text-[#FF5C00] font-mono bg-[#050508] rounded-lg px-3 py-2 mb-3">
                     [A:0:1234567890:12345]
@@ -323,26 +448,37 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                 <div className="bg-[#08080d] rounded-xl p-4">
                   <div className="text-xs font-bold text-gray-300 mb-1">Step 4 — Unpause</div>
                   <p className="text-[11px] text-gray-500">
-                    You can tell your opponent is in when an <strong className="text-white">empty character portrait</strong> appears on the other team.
-                    Then press <strong className="text-white">P</strong> to unpause and start the match.
+                    You can tell your opponent is in when an{" "}
+                    <strong className="text-white">empty character portrait</strong> appears on the
+                    other team. Then press <strong className="text-white">P</strong> to unpause.
                   </p>
                 </div>
               </div>
             )}
           </div>
-        ) : (
+        ) : showPrivateCodeSteps ? (
           <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 sm:p-6 mb-4 sm:mb-6">
             <h3 className="font-bold mb-3 text-[#FF5C00] text-sm sm:text-base">How to Join</h3>
             <ol className="text-xs sm:text-sm text-gray-400 space-y-1.5 sm:space-y-2 list-decimal list-inside">
-              <li>Open <strong className="text-white">Deadlock</strong></li>
-              <li>Go to <strong className="text-white">Private Match</strong></li>
-              <li>Host creates lobby ({match.ruleset} {match.format})</li>
-              <li>Host posts the <strong className="text-white">Join Code</strong> below</li>
-              <li>Other player joins with the code</li>
-              <li>Play ({match.best_of}) then both report the result</li>
+              <li>
+                Open <strong className="text-white">Deadlock</strong>
+              </li>
+              <li>
+                Go to <strong className="text-white">Private Match</strong>
+              </li>
+              <li>
+                Host creates lobby ({match.ruleset} {match.format})
+              </li>
+              <li>
+                Host posts the <strong className="text-white">Join Code</strong> below
+              </li>
+              <li>Other player / team joins with the code</li>
+              <li>
+                Play ({match.best_of}) then both captains report the result
+              </li>
             </ol>
           </div>
-        )}
+        ) : null}
 
         <MatchLive
           matchId={id}
@@ -354,55 +490,60 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           ruleset={match.ruleset || "Street Brawl"}
         />
 
-        {/* Actions — captains only for report/dispute/cancel */}
-        <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 justify-center mt-8 sm:mt-10">
-          {isOpen && !isCreator && (
-            <form action={async () => { "use server"; await acceptMatch(id) }} className="w-full sm:w-auto">
-              <button type="submit" className="btn-primary w-full sm:w-auto px-8 py-3 rounded-xl">Accept Match</button>
-            </form>
-          )}
+        {/* Report high — visible */}
+        {isAccepted && isCaptain && (
+          <div className="mt-8 p-5 rounded-2xl border border-[#1c1c28] bg-[#111118]">
+            <h3 className="font-bold mb-3">Report result</h3>
+            {(isCreator && !match.creator_report) || (isOpponent && !match.opponent_report) ? (
+              <form
+                action={reportResult.bind(null, id)}
+                className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
+              >
+                <select
+                  name="winner"
+                  required
+                  className="flex-1 bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm"
+                >
+                  <option value="">Who won?</option>
+                  <option value="creator">
+                    {match.creator_team
+                      ? match.creator_team.name
+                      : match.creator?.steam_name}{" "}
+                    won
+                  </option>
+                  <option value="opponent">
+                    {match.opponent_team
+                      ? match.opponent_team.name
+                      : match.opponent?.steam_name}{" "}
+                    won
+                  </option>
+                </select>
+                <button type="submit" className="btn-primary px-6 py-2.5 rounded-xl text-sm font-medium">
+                  Report Result
+                </button>
+              </form>
+            ) : (
+              <div className="px-5 py-2.5 rounded-xl bg-orange-500/10 text-orange-400 text-sm font-medium text-center">
+                You reported • Waiting for opponent
+              </div>
+            )}
 
-          {isOpen && isCreator && (
-            <form action={async () => { "use server"; await cancelMatch(id) }} className="w-full sm:w-auto">
-              <button type="submit" className="w-full sm:w-auto px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition">
-                Cancel Match
-              </button>
-            </form>
-          )}
-
-          {isAccepted && isCaptain && (
-            <>
-              {((isCreator && !match.creator_report) || (isOpponent && !match.opponent_report)) ? (
-                <form action={reportResult.bind(null, id)} className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center w-full sm:w-auto">
-                  <select name="winner" required className="bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm">
-                    <option value="">Who won?</option>
-                    <option value="creator">{match.creator?.steam_name} won</option>
-                    <option value="opponent">{match.opponent?.steam_name} won</option>
-                  </select>
-                  <button type="submit" className="btn-primary px-5 py-2.5 rounded-xl text-sm">
-                    Report Result
-                  </button>
-                </form>
-              ) : (
-                <div className="px-5 py-2.5 rounded-xl bg-orange-500/10 text-orange-400 text-sm font-medium text-center">
-                  You reported • Waiting for opponent
-                </div>
-              )}
-            </>
-          )}
-
-          {isAccepted && isCaptain && (
-            <form action={async () => { "use server"; await disputeMatch(id) }} className="w-full sm:w-auto">
+            <form action={disputeMatch.bind(null, id)} className="mt-3">
               <button
                 type="submit"
-                className="w-full sm:w-auto px-8 py-3 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition text-sm"
+                className="w-full py-2.5 rounded-xl border border-red-500/40 text-red-400 hover:bg-red-500/10 transition text-sm"
               >
                 Open Dispute
               </button>
             </form>
-          )}
+          </div>
+        )}
 
-          <Link href="/matches" className="w-full sm:w-auto text-center px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition">
+        <div className="flex justify-center mt-8">
+          <Link
+            href="/matches"
+            className="px-8 py-3 rounded-xl border border-[#1c1c28] hover:border-gray-500 transition"
+          >
             Back to Matches
           </Link>
         </div>

@@ -7,22 +7,24 @@ import { revalidatePath } from "next/cache"
 import { createNotification } from "@/lib/notifications"
 import { bumpLadderEntry } from "@/lib/ladder"
 
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
+
 export async function cancelMatch(matchId: string) {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) redirect("/")
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
+  const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
     .select("id")
     .eq("steam_id", steamId)
     .single()
-
   if (!profile) redirect("/")
 
   await supabase
@@ -35,28 +37,31 @@ export async function cancelMatch(matchId: string) {
   redirect("/matches")
 }
 
-export async function acceptMatch(matchId: string) {
+export async function acceptMatch(matchId: string, formData?: FormData) {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) redirect("/")
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
+  const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, steam_name")
     .eq("steam_id", steamId)
     .single()
-
   if (!profile) redirect("/")
 
-  // Busy if open match, or accepted match you haven't reported yet
+  const { data: match } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("id", matchId)
+    .eq("status", "open")
+    .single()
+  if (!match) redirect("/matches")
+  if (match.creator_id === profile.id) redirect("/matches")
+
   const { data: existing } = await supabase
     .from("matches")
-    .select("id, creator_id, opponent_id, creator_report, opponent_report, status")
+    .select("id, status, creator_id, opponent_id, creator_report, opponent_report")
     .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
     .in("status", ["open", "accepted"])
 
@@ -66,56 +71,64 @@ export async function acceptMatch(matchId: string) {
     if (m.opponent_id === profile.id && !m.opponent_report) return true
     return false
   })
+  if (stillBusy) redirect("/matches?error=already_in_match")
 
-  if (stillBusy) {
-    redirect("/matches?error=already_in_match")
-  }
-
-  const { data: match } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("id", matchId)
-    .eq("status", "open")
-    .single()
-
-  if (!match) redirect("/matches")
-
-  const otherId = match.creator_id
-
-  // Pending match with this player?
-  const { data: pendingWithThem } = await supabase
+  const { data: pendingWith } = await supabase
     .from("matches")
     .select("id")
-    .in("status", ["open", "accepted"])
     .or(
-      `and(creator_id.eq.${profile.id},opponent_id.eq.${otherId}),and(creator_id.eq.${otherId},opponent_id.eq.${profile.id})`
+      `and(creator_id.eq.${profile.id},opponent_id.eq.${match.creator_id}),and(creator_id.eq.${match.creator_id},opponent_id.eq.${profile.id})`
     )
+    .eq("status", "accepted")
     .limit(1)
-
-  if (pendingWithThem && pendingWithThem.length > 0) {
+  if (pendingWith && pendingWith.length > 0) {
     redirect("/matches?error=pending_with_player")
   }
 
-  const needsTeam = ["2v2", "3v3", "4v4", "6v6"].includes(match.format)
-  const sizeMap: Record<string, number> = { "2v2": 2, "3v3": 3, "4v4": 4, "6v6": 6 }
-  let opponentTeamId = null
+  const { data: disputeWith } = await supabase
+    .from("matches")
+    .select("id")
+    .or(
+      `and(creator_id.eq.${profile.id},opponent_id.eq.${match.creator_id}),and(creator_id.eq.${match.creator_id},opponent_id.eq.${profile.id})`
+    )
+    .eq("status", "disputed")
+    .limit(1)
+  if (disputeWith && disputeWith.length > 0) {
+    redirect("/matches?error=dispute_with_player")
+  }
 
-  if (needsTeam) {
-    const neededSize = sizeMap[match.format]
+  const SIZE_MAP: Record<string, number> = {
+    "1v1": 1,
+    "2v2": 2,
+    "3v3": 3,
+    "4v4": 4,
+    "6v6": 6,
+  }
+  const needed = SIZE_MAP[match.format] || 1
+  let opponentTeamId: string | null = null
 
-    const { data: membership } = await supabase
+  if (needed > 1) {
+    const teamId = formData?.get("team_id") as string
+    if (!teamId) redirect(`/matches/${matchId}?error=need_team`)
+
+    const { data: team } = await supabase
+      .from("teams")
+      .select("id, owner_id, is_scrim")
+      .eq("id", teamId)
+      .single()
+
+    if (!team || team.is_scrim) redirect(`/matches/${matchId}?error=scrim_team`)
+    if (team.owner_id !== profile.id) redirect(`/matches/${matchId}?error=not_captain`)
+
+    const { data: members } = await supabase
       .from("team_members")
-      .select("team_id, team:teams(id, size)")
-      .eq("profile_id", profile.id)
+      .select("id")
+      .eq("team_id", teamId)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const valid = membership?.find((m: any) => m.team?.size === neededSize)
-
-    if (!valid) {
-      redirect(`/matches/${matchId}?error=need_team`)
+    if ((members?.length || 0) < needed) {
+      redirect(`/matches/${matchId}?error=roster`)
     }
-
-    opponentTeamId = valid.team_id
+    opponentTeamId = teamId
   }
 
   await supabase
@@ -128,6 +141,7 @@ export async function acceptMatch(matchId: string) {
       host_id: match.creator_id,
     })
     .eq("id", matchId)
+    .eq("status", "open")
 
   await createNotification({
     userId: match.creator_id,
@@ -149,17 +163,12 @@ export async function setPrivateCode(matchId: string, formData: FormData) {
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) return
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
+  const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
     .select("id")
     .eq("steam_id", steamId)
     .single()
-
   if (!profile) return
 
   await supabase
@@ -179,17 +188,12 @@ export async function sendMessage(matchId: string, formData: FormData) {
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) return
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
+  const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
     .select("id")
     .eq("steam_id", steamId)
     .single()
-
   if (!profile) return
 
   await supabase.from("match_messages").insert({
@@ -201,6 +205,30 @@ export async function sendMessage(matchId: string, formData: FormData) {
   revalidatePath(`/matches/${matchId}`)
 }
 
+async function applyTeamMemberRecords(
+  supabase: ReturnType<typeof createClient>,
+  teamId: string | null,
+  won: boolean,
+  skipIds: string[] = []
+) {
+  if (!teamId) return
+  const { data: members } = await supabase
+    .from("team_members")
+    .select("profile_id")
+    .eq("team_id", teamId)
+
+  for (const m of members || []) {
+    if (skipIds.includes(m.profile_id)) continue
+    if (won) {
+      await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: 30 })
+      await supabase.rpc("increment_wins", { profile_id: m.profile_id })
+    } else {
+      await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: -20 })
+      await supabase.rpc("increment_losses", { profile_id: m.profile_id })
+    }
+  }
+}
+
 export async function reportResult(matchId: string, formData: FormData) {
   const winner = formData.get("winner") as string
   if (!winner) return
@@ -209,25 +237,15 @@ export async function reportResult(matchId: string, formData: FormData) {
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) return
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
+  const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
     .select("id")
     .eq("steam_id", steamId)
     .single()
-
   if (!profile) return
 
-  const { data: match } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("id", matchId)
-    .single()
-
+  const { data: match } = await supabase.from("matches").select("*").eq("id", matchId).single()
   if (!match || match.status !== "accepted") return
 
   const isCreator = profile.id === match.creator_id
@@ -240,12 +258,7 @@ export async function reportResult(matchId: string, formData: FormData) {
 
   await supabase.from("matches").update(updateData).eq("id", matchId)
 
-  const { data: updated } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("id", matchId)
-    .single()
-
+  const { data: updated } = await supabase.from("matches").select("*").eq("id", matchId).single()
   if (!updated) return
 
   const otherPlayerId = isCreator ? updated.opponent_id : updated.creator_id
@@ -275,6 +288,7 @@ export async function reportResult(matchId: string, formData: FormData) {
         })
         .eq("id", matchId)
 
+      // Captains
       if (winnerId) {
         await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
         await supabase.rpc("increment_wins", { profile_id: winnerId })
@@ -294,55 +308,70 @@ export async function reportResult(matchId: string, formData: FormData) {
           : updated.creator_team_id
 
       if (winnerTeamId) {
-        const { data: wt } = await supabase.from("teams").select("wins").eq("id", winnerTeamId).single()
+        const { data: wt } = await supabase
+          .from("teams")
+          .select("wins")
+          .eq("id", winnerTeamId)
+          .single()
         if (wt) {
-          await supabase.from("teams").update({ wins: (wt.wins || 0) + 1 }).eq("id", winnerTeamId)
+          await supabase
+            .from("teams")
+            .update({ wins: (wt.wins || 0) + 1 })
+            .eq("id", winnerTeamId)
         }
       }
       if (loserTeamId) {
-        const { data: lt } = await supabase.from("teams").select("losses").eq("id", loserTeamId).single()
+        const { data: lt } = await supabase
+          .from("teams")
+          .select("losses")
+          .eq("id", loserTeamId)
+          .single()
         if (lt) {
-          await supabase.from("teams").update({ losses: (lt.losses || 0) + 1 }).eq("id", loserTeamId)
+          await supabase
+            .from("teams")
+            .update({ losses: (lt.losses || 0) + 1 })
+            .eq("id", loserTeamId)
         }
       }
 
-      async function applyTeamMemberRecords(teamId: string | null, won: boolean) {
-        if (!teamId) return
-        const { data: members } = await supabase
-          .from("team_members")
-          .select("profile_id")
-          .eq("team_id", teamId)
-
-        if (!members) return
-
-        for (const m of members) {
-          if (m.profile_id === winnerId || m.profile_id === loserId) continue
-          if (won) {
-            await supabase.rpc("increment_wins", { profile_id: m.profile_id })
-            await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: 30 })
-          } else {
-            await supabase.rpc("increment_losses", { profile_id: m.profile_id })
-            await supabase.rpc("increment_xp", { profile_id: m.profile_id, amount: -20 })
-          }
-        }
-      }
-
-      await applyTeamMemberRecords(winnerTeamId, true)
-      await applyTeamMemberRecords(loserTeamId, false)
+      // Other teammates (skip captains already counted)
+      const skip = [winnerId, loserId].filter(Boolean) as string[]
+      await applyTeamMemberRecords(supabase, winnerTeamId, true, skip)
+      await applyTeamMemberRecords(supabase, loserTeamId, false, skip)
 
       if (updated.format === "1v1") {
         if (winnerId) {
-          await bumpLadderEntry({ mode: "1v1", entityType: "player", entityId: winnerId, won: true })
+          await bumpLadderEntry({
+            mode: "1v1",
+            entityType: "player",
+            entityId: winnerId,
+            won: true,
+          })
         }
         if (loserId) {
-          await bumpLadderEntry({ mode: "1v1", entityType: "player", entityId: loserId, won: false })
+          await bumpLadderEntry({
+            mode: "1v1",
+            entityType: "player",
+            entityId: loserId,
+            won: false,
+          })
         }
       } else if (["2v2", "3v3", "4v4", "6v6"].includes(updated.format)) {
         if (winnerTeamId) {
-          await bumpLadderEntry({ mode: updated.format, entityType: "team", entityId: winnerTeamId, won: true })
+          await bumpLadderEntry({
+            mode: updated.format,
+            entityType: "team",
+            entityId: winnerTeamId,
+            won: true,
+          })
         }
         if (loserTeamId) {
-          await bumpLadderEntry({ mode: updated.format, entityType: "team", entityId: loserTeamId, won: false })
+          await bumpLadderEntry({
+            mode: updated.format,
+            entityType: "team",
+            entityId: loserTeamId,
+            won: false,
+          })
         }
       }
 
@@ -377,10 +406,7 @@ export async function reportResult(matchId: string, formData: FormData) {
         await bumpQuest(loserId, "play_2")
       }
     } else {
-      await supabase
-        .from("matches")
-        .update({ status: "disputed" })
-        .eq("id", matchId)
+      await supabase.from("matches").update({ status: "disputed" }).eq("id", matchId)
     }
   }
 
@@ -396,37 +422,23 @@ export async function disputeMatch(matchId: string) {
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) redirect("/")
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-
+  const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
     .select("id")
     .eq("steam_id", steamId)
     .single()
-
   if (!profile) redirect("/")
 
-  const { data: match } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("id", matchId)
-    .single()
-
+  const { data: match } = await supabase.from("matches").select("*").eq("id", matchId).single()
   if (!match) redirect("/matches")
 
   const isParticipant =
     profile.id === match.creator_id || profile.id === match.opponent_id
-
   if (!isParticipant) redirect(`/matches/${matchId}`)
   if (match.status !== "accepted") redirect(`/matches/${matchId}`)
 
-  await supabase
-    .from("matches")
-    .update({ status: "disputed" })
-    .eq("id", matchId)
+  await supabase.from("matches").update({ status: "disputed" }).eq("id", matchId)
 
   revalidatePath(`/matches/${matchId}`)
   revalidatePath("/matches")

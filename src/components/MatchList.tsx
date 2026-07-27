@@ -18,6 +18,18 @@ type Match = {
     steam_name: string
     avatar_url: string | null
   } | null
+  opponent?: {
+    steam_name: string
+    avatar_url: string | null
+  } | null
+  creator_team?: {
+    name: string
+    tag: string | null
+  } | null
+  opponent_team?: {
+    name: string
+    tag: string | null
+  } | null
 }
 
 function timeAgo(date: string) {
@@ -100,6 +112,14 @@ export default function MatchList({
           resultColor = "bg-blue-500/15 text-blue-400"
         }
 
+        const leftName = match.creator_team
+          ? `${match.creator_team.tag ? `[${match.creator_team.tag}] ` : ""}${match.creator_team.name}`
+          : match.creator?.steam_name || "Unknown"
+
+        const rightName = match.opponent_team
+          ? `${match.opponent_team.tag ? `[${match.opponent_team.tag}] ` : ""}${match.opponent_team.name}`
+          : match.opponent?.steam_name || null
+
         return (
           <Link
             key={match.id}
@@ -115,7 +135,10 @@ export default function MatchList({
                 />
               )}
               <div className="min-w-0">
-                <div className="font-medium truncate">{match.creator?.steam_name || "Unknown"}</div>
+                <div className="font-medium truncate">
+                  {leftName}
+                  {rightName ? ` vs ${rightName}` : ""}
+                </div>
                 <div className="text-xs sm:text-sm text-gray-400 truncate">
                   {match.format} • {match.best_of || "Bo1"} • {match.region} • {match.ruleset}
                 </div>
@@ -126,7 +149,9 @@ export default function MatchList({
               <span className="text-[10px] sm:text-xs text-gray-500 hidden sm:inline">
                 {timeAgo(match.created_at)}
               </span>
-              <span className={`text-[10px] sm:text-xs px-2 sm:px-2.5 py-1 rounded-full font-medium ${resultColor}`}>
+              <span
+                className={`text-[10px] sm:text-xs px-2 sm:px-2.5 py-1 rounded-full font-medium ${resultColor}`}
+              >
                 {resultLabel}
               </span>
             </div>

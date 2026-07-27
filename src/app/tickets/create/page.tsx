@@ -27,14 +27,13 @@ export default async function CreateTicketPage({
 
   if (!profile) redirect("/login?next=/tickets/create")
 
-  const { data: existing } = await supabase
+    const { data: existing } = await supabase
     .from("tickets")
     .select("id")
     .eq("creator_id", profile.id)
     .eq("status", "open")
-    .limit(1)
 
-  if (existing && existing.length > 0) {
+  if ((existing?.length || 0) >= 5) {
     redirect("/tickets?error=already_open")
   }
 

@@ -122,6 +122,18 @@ export async function createScrim(formData: FormData) {
   const { supabase, profile } = await getProfile()
 
   const teamId = formData.get("team_id") as string
+    if (team.owner_id !== profile.id) {
+    redirect("/scrims/create?error=not_captain")
+  }
+
+  const { data: members } = await supabase
+    .from("team_members")
+    .select("id")
+    .eq("team_id", teamId)
+
+  if ((members?.length || 0) < 6) {
+    redirect("/scrims/create?error=need_6")
+  }
   const visibilityRaw = (formData.get("visibility") as string) || "open"
   const visibility = visibilityRaw === "private" ? "private" : "open"
 
@@ -233,6 +245,19 @@ export async function acceptScrim(scrimId: string, formData: FormData) {
     .eq("profile_id", profile.id)
     .eq("team_id", teamId)
     .single()
+	
+	  // team must be scrim, user is owner, 6 members
+  if (!team.is_scrim) redirect(`/scrims/${scrimId}?error=not_scrim`)
+  if (team.owner_id !== profile.id) redirect(`/scrims/${scrimId}?error=not_captain`)
+
+  const { data: members } = await supabase
+    .from("team_members")
+    .select("id")
+    .eq("team_id", teamId)
+
+  if ((members?.length || 0) < 6) {
+    redirect(`/scrims/${scrimId}?error=need_6`)
+  }
 
   const team = membership?.team
     ? Array.isArray(membership.team)

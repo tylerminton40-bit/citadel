@@ -6,9 +6,28 @@ import { getCurrentSeason } from "@/lib/ladder"
 const MODES = ["1v1", "2v2", "3v3", "4v4", "6v6"] as const
 
 const MONTHS = [
-  "", "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ]
+
+type LadderEntry = {
+  id: string
+  entity_type: string
+  entity_id: string
+  wins: number
+  losses: number
+}
 
 export default async function LaddersPage({
   searchParams,
@@ -16,7 +35,7 @@ export default async function LaddersPage({
   searchParams: Promise<{ mode?: string }>
 }) {
   const { mode: modeParam } = await searchParams
-  const mode = MODES.includes(modeParam as typeof MODES[number])
+  const mode = MODES.includes(modeParam as (typeof MODES)[number])
     ? (modeParam as string)
     : "1v1"
 
@@ -27,15 +46,7 @@ export default async function LaddersPage({
 
   const season = await getCurrentSeason()
 
-  type LadderEntry = {
-  id: string
-  entity_type: string
-  entity_id: string
-  wins: number
-  losses: number
-}
-
-let entries: LadderEntry[] = []
+  let entries: LadderEntry[] = []
 
   if (season) {
     const { data } = await supabase
@@ -43,29 +54,36 @@ let entries: LadderEntry[] = []
       .select("*")
       .eq("season_id", season.id)
       .eq("mode", mode)
-      .order("wins", { ascending: false })
-      .order("losses", { ascending: true })
-      .limit(50)
+      .limit(100)
 
     entries = data || []
   }
 
-  // Resolve names
+  // Sort by wins - losses only (higher net first)
+  entries.sort((a, b) => {
+    const netA = (a.wins || 0) - (a.losses || 0)
+    const netB = (b.wins || 0) - (b.losses || 0)
+    if (netB !== netA) return netB - netA
+    return (b.wins || 0) - (a.wins || 0)
+  })
+
   const playerIds = entries.filter((e) => e.entity_type === "player").map((e) => e.entity_id)
   const teamIds = entries.filter((e) => e.entity_type === "team").map((e) => e.entity_id)
 
   type ProfileInfo = { id: string; steam_name: string; avatar_url: string | null }
-type TeamInfo = { id: string; name: string; tag: string | null; wins: number; losses: number }
+  type TeamInfo = { id: string; name: string; tag: string | null; wins: number; losses: number }
 
-const profilesMap: Record<string, ProfileInfo> = {}
-const teamsMap: Record<string, TeamInfo> = {}
+  const profilesMap: Record<string, ProfileInfo> = {}
+  const teamsMap: Record<string, TeamInfo> = {}
 
   if (playerIds.length > 0) {
     const { data } = await supabase
       .from("profiles")
       .select("id, steam_name, avatar_url")
       .in("id", playerIds)
-    data?.forEach((p) => { profilesMap[p.id] = p })
+    data?.forEach((p) => {
+      profilesMap[p.id] = p
+    })
   }
 
   if (teamIds.length > 0) {
@@ -73,12 +91,12 @@ const teamsMap: Record<string, TeamInfo> = {}
       .from("teams")
       .select("id, name, tag, wins, losses")
       .in("id", teamIds)
-    data?.forEach((t) => { teamsMap[t.id] = t })
+    data?.forEach((t) => {
+      teamsMap[t.id] = t
+    })
   }
 
-  const seasonLabel = season
-    ? `${MONTHS[season.month]} ${season.year}`
-    : "Current Season"
+  const seasonLabel = season ? `${MONTHS[season.month]} ${season.year}` : "Current Season"
 
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
@@ -88,11 +106,10 @@ const teamsMap: Record<string, TeamInfo> = {}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-1">Monthly Ladders</h1>
           <p className="text-gray-400 text-sm">
-            {seasonLabel} · Resets every month · Top 3 earn bonus XP
+            {seasonLabel} · Sorted by wins − losses · Top 3 earn bonus XP
           </p>
         </div>
 
-        {/* Rewards banner */}
         <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 mb-6 flex flex-wrap justify-center gap-6 text-center text-sm">
           <div>
             <div className="text-yellow-400 font-black text-lg">1st</div>
@@ -108,7 +125,6 @@ const teamsMap: Record<string, TeamInfo> = {}
           </div>
         </div>
 
-        {/* Mode tabs */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
           {MODES.map((m) => (
             <Link
@@ -131,7 +147,6 @@ const teamsMap: Record<string, TeamInfo> = {}
             : `Team ladder — only ${mode} matches count`}
         </div>
 
-        {/* Standings */}
         <div className="space-y-2">
           {entries.length > 0 ? (
             entries.map((entry, i) => {
@@ -141,8 +156,9 @@ const teamsMap: Record<string, TeamInfo> = {}
               const name = isPlayer
                 ? profile?.steam_name || "Unknown"
                 : team
-                  ? `${team.tag ? `[${team.tag}] ` : ""}${team.name}`
-                  : "Unknown Team"
+                ? `${team.tag ? `[${team.tag}] ` : ""}${team.name}`
+                : "Unknown Team"
+              const net = (entry.wins || 0) - (entry.losses || 0)
 
               return (
                 <div
@@ -157,12 +173,17 @@ const teamsMap: Record<string, TeamInfo> = {}
                       : "border-[#1c1c28] bg-[#111118]"
                   }`}
                 >
-                  <div className={`w-8 text-center font-black text-lg ${
-                    i === 0 ? "text-yellow-400" :
-                    i === 1 ? "text-gray-300" :
-                    i === 2 ? "text-orange-400" :
-                    "text-gray-600"
-                  }`}>
+                  <div
+                    className={`w-8 text-center font-black text-lg ${
+                      i === 0
+                        ? "text-yellow-400"
+                        : i === 1
+                        ? "text-gray-300"
+                        : i === 2
+                        ? "text-orange-400"
+                        : "text-gray-600"
+                    }`}
+                  >
                     {i + 1}
                   </div>
 
@@ -179,9 +200,15 @@ const teamsMap: Record<string, TeamInfo> = {}
 
                   <div className="text-right">
                     <div className="font-bold">
-                      <span className="text-emerald-400">{entry.wins}W</span>
-                      {" "}
+                      <span className="text-emerald-400">{entry.wins}W</span>{" "}
                       <span className="text-red-400">{entry.losses}L</span>
+                    </div>
+                    <div
+                      className={`text-xs font-medium ${
+                        net > 0 ? "text-emerald-400" : net < 0 ? "text-red-400" : "text-gray-500"
+                      }`}
+                    >
+                      {net > 0 ? `+${net}` : net}
                     </div>
                   </div>
                 </div>
