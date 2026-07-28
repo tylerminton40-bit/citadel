@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
+import { forceWinner } from "./actions"
 
 const ADMIN_STEAM_ID = "76561199480856629"
 
@@ -21,6 +22,8 @@ type MatchRow = {
   created_at: string
   deadlock_match_id: string | null
   result_source: string | null
+  creator_id: string
+  opponent_id: string | null
   creator: { steam_name: string; avatar_url: string | null } | null
   opponent: { steam_name: string; avatar_url: string | null } | null
   creator_team: { name: string; tag: string | null } | null
@@ -58,6 +61,8 @@ export default async function AdminMatchesPage() {
       created_at,
       deadlock_match_id,
       result_source,
+      creator_id,
+      opponent_id,
       creator:profiles!matches_creator_id_fkey(steam_name, avatar_url),
       opponent:profiles!matches_opponent_id_fkey(steam_name, avatar_url),
       creator_team:teams!matches_creator_team_id_fkey(name, tag),
@@ -84,14 +89,11 @@ export default async function AdminMatchesPage() {
       : match.opponent?.steam_name || "Waiting..."
 
     return (
-      <Link
-        href={`/matches/${match.id}`}
-        className="block bg-[#111118] border border-[#1c1c28] rounded-2xl p-4 hover:border-[#FF5C00]/40 transition"
-      >
+      <div className="bg-[#111118] border border-[#1c1c28] rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="text-xs text-gray-400">
+          <Link href={`/matches/${match.id}`} className="text-xs text-gray-400 hover:text-white">
             {match.format} • {match.best_of} • {match.ruleset}
-          </div>
+          </Link>
           <div
             className={`px-2.5 py-1 rounded-full text-[10px] font-medium ${
               match.status === "open"
@@ -109,7 +111,7 @@ export default async function AdminMatchesPage() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 mb-3">
           <div className="flex-1 min-w-0">
             <div className="font-medium truncate text-sm">{creatorName}</div>
             <div className="text-xs text-gray-500">Host</div>
@@ -124,21 +126,59 @@ export default async function AdminMatchesPage() {
         </div>
 
         {match.status === "completed" && match.winner && (
-          <div className="mt-3 text-xs text-emerald-400">
+          <div className="text-xs text-emerald-400 mb-3">
             Winner: {match.winner.steam_name}
             {match.result_source === "api" && " (Auto)"}
+            {match.result_source === "admin" && " (Admin Forced)"}
           </div>
         )}
 
         {match.status === "accepted" && (
-          <div className="mt-3 text-xs text-gray-500">
+          <div className="text-xs text-gray-500 mb-3">
             {match.creator_report || match.opponent_report
               ? "Waiting for second report"
               : "No reports yet"}
             {match.private_code && ` • Code: ${match.private_code}`}
           </div>
         )}
-      </Link>
+
+        {/* Force Winner (only if not completed) */}
+        {match.status !== "completed" && match.opponent_id && (
+          <div className="flex gap-2 mt-2">
+            <form action={forceWinner.bind(null, match.id, "creator")}>
+              <button
+                type="submit"
+                className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600/30 transition"
+              >
+                Force Host Win
+              </button>
+            </form>
+            <form action={forceWinner.bind(null, match.id, "opponent")}>
+              <button
+                type="submit"
+                className="text-xs px-3 py-1.5 rounded-lg bg-purple-600/20 text-purple-400 border border-purple-500/30 hover:bg-purple-600/30 transition"
+              >
+                Force Challenger Win
+              </button>
+            </form>
+            <Link
+              href={`/matches/${match.id}`}
+              className="text-xs px-3 py-1.5 rounded-lg bg-gray-600/20 text-gray-300 border border-gray-500/30 hover:bg-gray-600/30 transition"
+            >
+              Open Match
+            </Link>
+          </div>
+        )}
+
+        {match.status === "completed" && (
+          <Link
+            href={`/matches/${match.id}`}
+            className="inline-block text-xs px-3 py-1.5 rounded-lg bg-gray-600/20 text-gray-300 border border-gray-500/30 hover:bg-gray-600/30 transition mt-2"
+          >
+            Open Match
+          </Link>
+        )}
+      </div>
     )
   }
 
@@ -147,17 +187,27 @@ export default async function AdminMatchesPage() {
       <Navbar />
 
       <main className="max-w-5xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
+        {/* Admin Hub Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-[#FF5C00]">Admin • Matches</h1>
-            <p className="text-sm text-gray-400 mt-1">All matches on the platform</p>
+            <h1 className="text-2xl font-bold text-[#FF5C00]">Admin Hub</h1>
+            <p className="text-sm text-gray-400 mt-1">Manage matches & tickets</p>
           </div>
-          <Link
-            href="/admin/tickets"
-            className="text-sm text-gray-400 hover:text-white transition"
-          >
-            Tickets →
-          </Link>
+
+          <div className="flex gap-2">
+            <Link
+              href="/admin/matches"
+              className="px-4 py-2 rounded-xl bg-[#FF5C00]/20 text-[#FF5C00] border border-[#FF5C00]/40 text-sm font-medium"
+            >
+              Matches
+            </Link>
+            <Link
+              href="/admin/tickets"
+              className="px-4 py-2 rounded-xl bg-[#111118] text-gray-300 border border-[#1c1c28] hover:border-gray-500 text-sm font-medium transition"
+            >
+              Tickets
+            </Link>
+          </div>
         </div>
 
         {/* Stats */}
