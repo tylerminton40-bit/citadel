@@ -30,8 +30,7 @@ export default async function MatchPage({
   const isAdmin = steamId === "76561199480856629"
   if (!steamId) redirect("/login?next=/matches")
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
