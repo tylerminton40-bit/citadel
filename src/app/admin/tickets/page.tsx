@@ -10,7 +10,6 @@ export default async function AdminTicketsPage() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
 
-  // Only you can access this page
   if (steamId !== ADMIN_STEAM_ID) {
     redirect("/")
   }
@@ -30,47 +29,75 @@ export default async function AdminTicketsPage() {
       <Navbar />
 
       <main className="max-w-5xl mx-auto px-4 py-12">
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold">Admin • Tickets</h1>
-          <p className="text-gray-400 text-sm mt-1">Only you can see this page</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+          <div>
+            <h1 className="text-2xl font-bold text-[#FF5C00]">Admin Hub</h1>
+            <p className="text-sm text-gray-400 mt-1">Manage matches & tickets</p>
+          </div>
+
+          <div className="flex gap-2">
+            <Link
+              href="/admin/matches"
+              className="px-4 py-2 rounded-xl bg-[#111118] text-gray-300 border border-[#1c1c28] hover:border-gray-500 text-sm font-medium transition"
+            >
+              Matches
+            </Link>
+            <Link
+              href="/admin/tickets"
+              className="px-4 py-2 rounded-xl bg-[#FF5C00]/20 text-[#FF5C00] border border-[#FF5C00]/40 text-sm font-medium"
+            >
+              Tickets
+            </Link>
+          </div>
         </div>
 
         <div className="space-y-4">
           {tickets && tickets.length > 0 ? (
-            tickets.map((ticket: {
-  id: string
-  subject: string
-  created_at: string
-  status: string
-  creator: { steam_name: string; avatar_url: string | null } | null
-}) => (
-              <Link
-                key={ticket.id}
-                href={`/admin/tickets/${ticket.id}`}
-                className="block bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 hover:border-[#FF5C00]/40 transition"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    {ticket.creator?.avatar_url && (
-                      <img src={ticket.creator.avatar_url} alt="" className="w-10 h-10 rounded-full" />
-                    )}
-                    <div>
-                      <div className="font-medium">{ticket.subject}</div>
-                      <div className="text-sm text-gray-400">
-                        {ticket.creator?.steam_name} • {new Date(ticket.created_at).toLocaleString()}
+            tickets.map(
+              (ticket: {
+                id: string
+                subject: string
+                created_at: string
+                status: string
+                creator: { steam_name: string; avatar_url: string | null } | null
+              }) => (
+                <Link
+                  key={ticket.id}
+                  href={`/admin/tickets/${ticket.id}`}
+                  className="block bg-[#111118] border border-[#1c1c28] rounded-2xl p-5 hover:border-[#FF5C00]/40 transition"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {ticket.creator?.avatar_url && (
+                        <img
+                          src={ticket.creator.avatar_url}
+                          alt=""
+                          className="w-10 h-10 rounded-full"
+                        />
+                      )}
+                      <div>
+                        <div className="font-medium">{ticket.subject}</div>
+                        <div className="text-sm text-gray-400">
+                          {ticket.creator?.steam_name} •{" "}
+                          {new Date(ticket.created_at).toLocaleString()}
+                        </div>
                       </div>
                     </div>
+                    <span
+                      className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                        ticket.status === "open"
+                          ? "bg-yellow-500/15 text-yellow-400"
+                          : ticket.status === "resolved"
+                          ? "bg-emerald-500/15 text-emerald-400"
+                          : "bg-gray-500/15 text-gray-400"
+                      }`}
+                    >
+                      {ticket.status}
+                    </span>
                   </div>
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                    ticket.status === "open" ? "bg-yellow-500/15 text-yellow-400" :
-                    ticket.status === "resolved" ? "bg-emerald-500/15 text-emerald-400" :
-                    "bg-gray-500/15 text-gray-400"
-                  }`}>
-                    {ticket.status}
-                  </span>
-                </div>
-              </Link>
-            ))
+                </Link>
+              )
+            )
           ) : (
             <div className="text-center py-20 text-gray-500">No tickets yet</div>
           )}

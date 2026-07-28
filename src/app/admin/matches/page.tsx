@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
-import { forceWinner } from "./actions"
+import { forceWinner, forceCancelMatch } from "./actions"
 
 const ADMIN_STEAM_ID = "76561199480856629"
 
@@ -116,9 +116,7 @@ export default async function AdminMatchesPage() {
             <div className="font-medium truncate text-sm">{creatorName}</div>
             <div className="text-xs text-gray-500">Host</div>
           </div>
-
           <div className="text-[#FF5C00] font-bold text-sm">VS</div>
-
           <div className="flex-1 min-w-0 text-right">
             <div className="font-medium truncate text-sm">{opponentName}</div>
             <div className="text-xs text-gray-500">Challenger</div>
@@ -142,42 +140,44 @@ export default async function AdminMatchesPage() {
           </div>
         )}
 
-        {/* Force Winner (only if not completed) */}
-        {match.status !== "completed" && match.opponent_id && (
-          <div className="flex gap-2 mt-2">
-            <form action={forceWinner.bind(null, match.id, "creator")}>
-              <button
-                type="submit"
-                className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600/30 transition"
-              >
-                Force Host Win
-              </button>
-            </form>
-            <form action={forceWinner.bind(null, match.id, "opponent")}>
-              <button
-                type="submit"
-                className="text-xs px-3 py-1.5 rounded-lg bg-purple-600/20 text-purple-400 border border-purple-500/30 hover:bg-purple-600/30 transition"
-              >
-                Force Challenger Win
-              </button>
-            </form>
-            <Link
-              href={`/matches/${match.id}`}
-              className="text-xs px-3 py-1.5 rounded-lg bg-gray-600/20 text-gray-300 border border-gray-500/30 hover:bg-gray-600/30 transition"
-            >
-              Open Match
-            </Link>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2 mt-2">
+          {match.opponent_id && (
+            <>
+              <form action={forceWinner.bind(null, match.id, "creator")}>
+                <button
+                  type="submit"
+                  className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600/30 transition"
+                >
+                  Force Host Win
+                </button>
+              </form>
+              <form action={forceWinner.bind(null, match.id, "opponent")}>
+                <button
+                  type="submit"
+                  className="text-xs px-3 py-1.5 rounded-lg bg-purple-600/20 text-purple-400 border border-purple-500/30 hover:bg-purple-600/30 transition"
+                >
+                  Force Challenger Win
+                </button>
+              </form>
+            </>
+          )}
 
-        {match.status === "completed" && (
+          <form action={forceCancelMatch.bind(null, match.id)}>
+            <button
+              type="submit"
+              className="text-xs px-3 py-1.5 rounded-lg bg-red-600/20 text-red-400 border border-red-500/30 hover:bg-red-600/30 transition"
+            >
+              Cancel (Erase)
+            </button>
+          </form>
+
           <Link
             href={`/matches/${match.id}`}
-            className="inline-block text-xs px-3 py-1.5 rounded-lg bg-gray-600/20 text-gray-300 border border-gray-500/30 hover:bg-gray-600/30 transition mt-2"
+            className="text-xs px-3 py-1.5 rounded-lg bg-gray-600/20 text-gray-300 border border-gray-500/30 hover:bg-gray-600/30 transition"
           >
             Open Match
           </Link>
-        )}
+        </div>
       </div>
     )
   }
@@ -187,7 +187,6 @@ export default async function AdminMatchesPage() {
       <Navbar />
 
       <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Admin Hub Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-[#FF5C00]">Admin Hub</h1>
@@ -210,7 +209,6 @@ export default async function AdminMatchesPage() {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           <div className="bg-[#111118] border border-[#1c1c28] rounded-xl p-4 text-center">
             <div className="text-2xl font-bold text-yellow-400">{open.length}</div>
@@ -230,7 +228,6 @@ export default async function AdminMatchesPage() {
           </div>
         </div>
 
-        {/* Live / Accepted */}
         {accepted.length > 0 && (
           <section className="mb-10">
             <h2 className="text-lg font-bold mb-4 text-emerald-400">
@@ -244,7 +241,6 @@ export default async function AdminMatchesPage() {
           </section>
         )}
 
-        {/* Open */}
         {open.length > 0 && (
           <section className="mb-10">
             <h2 className="text-lg font-bold mb-4 text-yellow-400">
@@ -258,7 +254,6 @@ export default async function AdminMatchesPage() {
           </section>
         )}
 
-        {/* Disputed */}
         {disputed.length > 0 && (
           <section className="mb-10">
             <h2 className="text-lg font-bold mb-4 text-red-400">
@@ -272,7 +267,6 @@ export default async function AdminMatchesPage() {
           </section>
         )}
 
-        {/* Recent Completed */}
         <section>
           <h2 className="text-lg font-bold mb-4 text-blue-400">
             Recent Completed ({completed.length})
