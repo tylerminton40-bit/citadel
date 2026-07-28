@@ -15,8 +15,15 @@ type TeamMember = {
   } | null
 }
 
-export default async function MatchPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function MatchPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ auto?: string }>
+}) {
   const { id } = await params
+  const { auto } = await searchParams
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) redirect("/login?next=/matches")
@@ -151,6 +158,25 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-12">
+        {/* Auto-detect feedback messages */}
+        {auto === "notfound" && (
+          <div className="mb-6 p-4 rounded-2xl border border-yellow-500/40 bg-yellow-500/10 text-yellow-300 text-sm text-center">
+            No private match found in the Deadlock API.
+            <br />
+            Please report the result manually, or upload your matches on{" "}
+            <a href="https://statlocker.gg" target="_blank" className="underline">
+              Statlocker.gg
+            </a>{" "}
+            and try again.
+          </div>
+        )}
+
+        {auto === "success" && (
+          <div className="mb-6 p-4 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 text-sm text-center">
+            Match result automatically detected and applied!
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-6 sm:mb-8 gap-2">
           <div className="text-xs sm:text-sm text-gray-400 truncate">
             {match.format} • {match.best_of} • {match.region} • {match.ruleset}
@@ -522,7 +548,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                   </button>
                 </form>
 
-                {/* Auto Detect Button */}
                 <form action={checkMatchResult.bind(null, id)}>
                   <button
                     type="submit"

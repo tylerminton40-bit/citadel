@@ -263,7 +263,6 @@ export async function reportResult(matchId: string, formData: FormData) {
           completed_at: new Date().toISOString(),
         })
         .eq("id", matchId)
-      // Captains
       if (winnerId) {
         await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
         await supabase.rpc("increment_wins", { profile_id: winnerId })
@@ -306,7 +305,6 @@ export async function reportResult(matchId: string, formData: FormData) {
             .eq("id", loserTeamId)
         }
       }
-      // Other teammates (skip captains already counted)
       const skip = [winnerId, loserId].filter(Boolean) as string[]
       await applyTeamMemberRecords(supabase, winnerTeamId, true, skip)
       await applyTeamMemberRecords(supabase, loserTeamId, false, skip)
@@ -434,7 +432,6 @@ export async function checkMatchResult(matchId: string) {
   if (!match || match.status !== "accepted") return
   if (!match.creator?.steam_id || !match.opponent?.steam_id) return
 
-  // Only captains can trigger this
   if (profile.id !== match.creator_id && profile.id !== match.opponent_id) return
 
   const result = await findWinnerFromHistory(
@@ -444,7 +441,6 @@ export async function checkMatchResult(matchId: string) {
   )
 
   if (!result) {
-    // Just mark that we checked
     await supabase
       .from("matches")
       .update({
@@ -453,14 +449,14 @@ export async function checkMatchResult(matchId: string) {
       .eq("id", matchId)
 
     revalidatePath(`/matches/${matchId}`)
-    return
+    redirect(`/matches/${matchId}?auto=notfound`)
   }
 
-  // We found a shared match — set the winner
   const winnerIsCreator = result.winnerSteamId === match.creator.steam_id
   const winnerSide = winnerIsCreator ? "creator" : "opponent"
+  const winnerId = winnerIsCreator ? match.creator_id : match.opponent_id
+  const loserId = winnerIsCreator ? match.opponent_id : match.creator_id
 
-  // Auto-fill both reports so the match completes
   await supabase
     .from("matches")
     .update({
@@ -469,19 +465,6 @@ export async function checkMatchResult(matchId: string) {
       deadlock_match_id: String(result.match_id),
       result_source: "api",
       result_checked_at: new Date().toISOString(),
-    })
-    .eq("id", matchId)
-
-  // Re-run the normal completion logic by calling reportResult style logic
-  // (we already set both reports to the same value, so the next part of reportResult would complete it)
-  // For safety we do the completion here directly
-
-  const winnerId = winnerIsCreator ? match.creator_id : match.opponent_id
-  const loserId = winnerIsCreator ? match.opponent_id : match.creator_id
-
-  await supabase
-    .from("matches")
-    .update({
       status: "completed",
       winner_id: winnerId,
       completed_at: new Date().toISOString(),
@@ -501,4 +484,5 @@ export async function checkMatchResult(matchId: string) {
   revalidatePath("/matches")
   revalidatePath("/profile")
   revalidatePath("/ladders")
+  redirect(`/matches/${matchId}?auto=success`)
 }
