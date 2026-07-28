@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { revalidatePath } from "next/cache"
 import { createNotification } from "@/lib/notifications"
 import { bumpLadderEntry } from "@/lib/ladder"
+import { findWinnerFromHistory } from "@/lib/deadlock-api"
 
 function getSupabase() {
   return createClient(
@@ -18,7 +19,6 @@ export async function cancelMatch(matchId: string) {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) redirect("/")
-
   const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
@@ -26,14 +26,12 @@ export async function cancelMatch(matchId: string) {
     .eq("steam_id", steamId)
     .single()
   if (!profile) redirect("/")
-
   await supabase
     .from("matches")
     .update({ status: "cancelled" })
     .eq("id", matchId)
     .eq("creator_id", profile.id)
     .eq("status", "open")
-
   redirect("/matches")
 }
 
@@ -41,7 +39,6 @@ export async function acceptMatch(matchId: string, formData?: FormData) {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) redirect("/")
-
   const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
@@ -49,7 +46,6 @@ export async function acceptMatch(matchId: string, formData?: FormData) {
     .eq("steam_id", steamId)
     .single()
   if (!profile) redirect("/")
-
   const { data: match } = await supabase
     .from("matches")
     .select("*")
@@ -58,13 +54,11 @@ export async function acceptMatch(matchId: string, formData?: FormData) {
     .single()
   if (!match) redirect("/matches")
   if (match.creator_id === profile.id) redirect("/matches")
-
   const { data: existing } = await supabase
     .from("matches")
     .select("id, status, creator_id, opponent_id, creator_report, opponent_report")
     .or(`creator_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
     .in("status", ["open", "accepted"])
-
   const stillBusy = (existing || []).some((m) => {
     if (m.status === "open") return true
     if (m.creator_id === profile.id && !m.creator_report) return true
@@ -72,7 +66,6 @@ export async function acceptMatch(matchId: string, formData?: FormData) {
     return false
   })
   if (stillBusy) redirect("/matches?error=already_in_match")
-
   const { data: pendingWith } = await supabase
     .from("matches")
     .select("id")
@@ -84,7 +77,6 @@ export async function acceptMatch(matchId: string, formData?: FormData) {
   if (pendingWith && pendingWith.length > 0) {
     redirect("/matches?error=pending_with_player")
   }
-
   const { data: disputeWith } = await supabase
     .from("matches")
     .select("id")
@@ -96,7 +88,6 @@ export async function acceptMatch(matchId: string, formData?: FormData) {
   if (disputeWith && disputeWith.length > 0) {
     redirect("/matches?error=dispute_with_player")
   }
-
   const SIZE_MAP: Record<string, number> = {
     "1v1": 1,
     "2v2": 2,
@@ -106,31 +97,25 @@ export async function acceptMatch(matchId: string, formData?: FormData) {
   }
   const needed = SIZE_MAP[match.format] || 1
   let opponentTeamId: string | null = null
-
   if (needed > 1) {
     const teamId = formData?.get("team_id") as string
     if (!teamId) redirect(`/matches/${matchId}?error=need_team`)
-
     const { data: team } = await supabase
       .from("teams")
       .select("id, owner_id, is_scrim")
       .eq("id", teamId)
       .single()
-
     if (!team || team.is_scrim) redirect(`/matches/${matchId}?error=scrim_team`)
     if (team.owner_id !== profile.id) redirect(`/matches/${matchId}?error=not_captain`)
-
     const { data: members } = await supabase
       .from("team_members")
       .select("id")
       .eq("team_id", teamId)
-
     if ((members?.length || 0) < needed) {
       redirect(`/matches/${matchId}?error=roster`)
     }
     opponentTeamId = teamId
   }
-
   await supabase
     .from("matches")
     .update({
@@ -142,7 +127,6 @@ export async function acceptMatch(matchId: string, formData?: FormData) {
     })
     .eq("id", matchId)
     .eq("status", "open")
-
   await createNotification({
     userId: match.creator_id,
     type: "match_accepted",
@@ -150,7 +134,6 @@ export async function acceptMatch(matchId: string, formData?: FormData) {
     message: `${profile.steam_name} accepted your match`,
     link: `/matches/${matchId}`,
   })
-
   revalidatePath(`/matches/${matchId}`)
   redirect(`/matches/${matchId}`)
 }
@@ -158,11 +141,9 @@ export async function acceptMatch(matchId: string, formData?: FormData) {
 export async function setPrivateCode(matchId: string, formData: FormData) {
   const code = formData.get("code") as string
   if (!code) return
-
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) return
-
   const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
@@ -170,24 +151,20 @@ export async function setPrivateCode(matchId: string, formData: FormData) {
     .eq("steam_id", steamId)
     .single()
   if (!profile) return
-
   await supabase
     .from("matches")
     .update({ private_code: code })
     .eq("id", matchId)
     .eq("creator_id", profile.id)
-
   revalidatePath(`/matches/${matchId}`)
 }
 
 export async function sendMessage(matchId: string, formData: FormData) {
   const message = formData.get("message") as string
   if (!message || message.trim() === "") return
-
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) return
-
   const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
@@ -195,13 +172,11 @@ export async function sendMessage(matchId: string, formData: FormData) {
     .eq("steam_id", steamId)
     .single()
   if (!profile) return
-
   await supabase.from("match_messages").insert({
     match_id: matchId,
     sender_id: profile.id,
     message: message.trim(),
   })
-
   revalidatePath(`/matches/${matchId}`)
 }
 
@@ -213,14 +188,11 @@ async function applyTeamMemberRecords(
   skipIds: string[] = []
 ) {
   if (!teamId) return
-
   const { data: members } = await supabase
     .from("team_members")
     .select("profile_id")
     .eq("team_id", teamId)
-
   const list = (members || []) as { profile_id: string }[]
-
   for (const m of list) {
     if (skipIds.includes(m.profile_id)) continue
     if (won) {
@@ -246,11 +218,9 @@ async function applyTeamMemberRecords(
 export async function reportResult(matchId: string, formData: FormData) {
   const winner = formData.get("winner") as string
   if (!winner) return
-
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) return
-
   const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
@@ -258,23 +228,17 @@ export async function reportResult(matchId: string, formData: FormData) {
     .eq("steam_id", steamId)
     .single()
   if (!profile) return
-
   const { data: match } = await supabase.from("matches").select("*").eq("id", matchId).single()
   if (!match || match.status !== "accepted") return
-
   const isCreator = profile.id === match.creator_id
   const isOpponent = profile.id === match.opponent_id
   if (!isCreator && !isOpponent) return
-
   const updateData: { creator_report?: string; opponent_report?: string } = {}
   if (isCreator) updateData.creator_report = winner
   if (isOpponent) updateData.opponent_report = winner
-
   await supabase.from("matches").update(updateData).eq("id", matchId)
-
   const { data: updated } = await supabase.from("matches").select("*").eq("id", matchId).single()
   if (!updated) return
-
   const otherPlayerId = isCreator ? updated.opponent_id : updated.creator_id
   if (otherPlayerId) {
     await createNotification({
@@ -285,14 +249,12 @@ export async function reportResult(matchId: string, formData: FormData) {
       link: `/matches/${matchId}`,
     })
   }
-
   if (updated.creator_report && updated.opponent_report) {
     if (updated.creator_report === updated.opponent_report) {
       const winnerId =
         updated.creator_report === "creator" ? updated.creator_id : updated.opponent_id
       const loserId =
         updated.creator_report === "creator" ? updated.opponent_id : updated.creator_id
-
       await supabase
         .from("matches")
         .update({
@@ -301,7 +263,6 @@ export async function reportResult(matchId: string, formData: FormData) {
           completed_at: new Date().toISOString(),
         })
         .eq("id", matchId)
-
       // Captains
       if (winnerId) {
         await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
@@ -311,7 +272,6 @@ export async function reportResult(matchId: string, formData: FormData) {
         await supabase.rpc("increment_xp", { profile_id: loserId, amount: -20 })
         await supabase.rpc("increment_losses", { profile_id: loserId })
       }
-
       const winnerTeamId =
         updated.creator_report === "creator"
           ? updated.creator_team_id
@@ -320,7 +280,6 @@ export async function reportResult(matchId: string, formData: FormData) {
         updated.creator_report === "creator"
           ? updated.opponent_team_id
           : updated.creator_team_id
-
       if (winnerTeamId) {
         const { data: wt } = await supabase
           .from("teams")
@@ -347,12 +306,10 @@ export async function reportResult(matchId: string, formData: FormData) {
             .eq("id", loserTeamId)
         }
       }
-
       // Other teammates (skip captains already counted)
       const skip = [winnerId, loserId].filter(Boolean) as string[]
       await applyTeamMemberRecords(supabase, winnerTeamId, true, skip)
       await applyTeamMemberRecords(supabase, loserTeamId, false, skip)
-
       if (updated.format === "1v1") {
         if (winnerId) {
           await bumpLadderEntry({
@@ -388,7 +345,6 @@ export async function reportResult(matchId: string, formData: FormData) {
           })
         }
       }
-
       const today = new Date().toISOString().slice(0, 10)
       async function bumpQuest(userId: string, key: string) {
         const { data: quest } = await supabase
@@ -398,7 +354,6 @@ export async function reportResult(matchId: string, formData: FormData) {
           .eq("quest_key", key)
           .eq("quest_date", today)
           .single()
-
         if (quest && !quest.claimed) {
           const newProgress = Math.min(quest.progress + 1, quest.target)
           await supabase
@@ -410,7 +365,6 @@ export async function reportResult(matchId: string, formData: FormData) {
             .eq("id", quest.id)
         }
       }
-
       if (winnerId) {
         await bumpQuest(winnerId, "play_2")
         await bumpQuest(winnerId, "win_1")
@@ -423,7 +377,6 @@ export async function reportResult(matchId: string, formData: FormData) {
       await supabase.from("matches").update({ status: "disputed" }).eq("id", matchId)
     }
   }
-
   revalidatePath(`/matches/${matchId}`)
   revalidatePath("/profile")
   revalidatePath("/quests")
@@ -435,7 +388,6 @@ export async function disputeMatch(matchId: string) {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
   if (!steamId) redirect("/")
-
   const supabase = getSupabase()
   const { data: profile } = await supabase
     .from("profiles")
@@ -443,18 +395,110 @@ export async function disputeMatch(matchId: string) {
     .eq("steam_id", steamId)
     .single()
   if (!profile) redirect("/")
-
   const { data: match } = await supabase.from("matches").select("*").eq("id", matchId).single()
   if (!match) redirect("/matches")
-
   const isParticipant =
     profile.id === match.creator_id || profile.id === match.opponent_id
   if (!isParticipant) redirect(`/matches/${matchId}`)
   if (match.status !== "accepted") redirect(`/matches/${matchId}`)
-
   await supabase.from("matches").update({ status: "disputed" }).eq("id", matchId)
-
   revalidatePath(`/matches/${matchId}`)
   revalidatePath("/matches")
   redirect(`/matches/${matchId}`)
+}
+
+export async function checkMatchResult(matchId: string) {
+  const cookieStore = await cookies()
+  const steamId = cookieStore.get("citadel_steam_id")?.value
+  if (!steamId) return
+
+  const supabase = getSupabase()
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("steam_id", steamId)
+    .single()
+  if (!profile) return
+
+  const { data: match } = await supabase
+    .from("matches")
+    .select(`
+      *,
+      creator:profiles!matches_creator_id_fkey(id, steam_id),
+      opponent:profiles!matches_opponent_id_fkey(id, steam_id)
+    `)
+    .eq("id", matchId)
+    .single()
+
+  if (!match || match.status !== "accepted") return
+  if (!match.creator?.steam_id || !match.opponent?.steam_id) return
+
+  // Only captains can trigger this
+  if (profile.id !== match.creator_id && profile.id !== match.opponent_id) return
+
+  const result = await findWinnerFromHistory(
+    match.creator.steam_id,
+    match.opponent.steam_id,
+    match.accepted_at || match.created_at
+  )
+
+  if (!result) {
+    // Just mark that we checked
+    await supabase
+      .from("matches")
+      .update({
+        result_checked_at: new Date().toISOString(),
+      })
+      .eq("id", matchId)
+
+    revalidatePath(`/matches/${matchId}`)
+    return
+  }
+
+  // We found a shared match — set the winner
+  const winnerIsCreator = result.winnerSteamId === match.creator.steam_id
+  const winnerSide = winnerIsCreator ? "creator" : "opponent"
+
+  // Auto-fill both reports so the match completes
+  await supabase
+    .from("matches")
+    .update({
+      creator_report: winnerSide,
+      opponent_report: winnerSide,
+      deadlock_match_id: String(result.match_id),
+      result_source: "api",
+      result_checked_at: new Date().toISOString(),
+    })
+    .eq("id", matchId)
+
+  // Re-run the normal completion logic by calling reportResult style logic
+  // (we already set both reports to the same value, so the next part of reportResult would complete it)
+  // For safety we do the completion here directly
+
+  const winnerId = winnerIsCreator ? match.creator_id : match.opponent_id
+  const loserId = winnerIsCreator ? match.opponent_id : match.creator_id
+
+  await supabase
+    .from("matches")
+    .update({
+      status: "completed",
+      winner_id: winnerId,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", matchId)
+
+  if (winnerId) {
+    await supabase.rpc("increment_xp", { profile_id: winnerId, amount: 30 })
+    await supabase.rpc("increment_wins", { profile_id: winnerId })
+  }
+  if (loserId) {
+    await supabase.rpc("increment_xp", { profile_id: loserId, amount: -20 })
+    await supabase.rpc("increment_losses", { profile_id: loserId })
+  }
+
+  revalidatePath(`/matches/${matchId}`)
+  revalidatePath("/matches")
+  revalidatePath("/profile")
+  revalidatePath("/ladders")
 }

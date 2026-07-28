@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import Navbar from "@/components/Navbar"
 import Link from "next/link"
-import { cancelMatch, acceptMatch, reportResult, disputeMatch } from "../actions"
+import { cancelMatch, acceptMatch, reportResult, disputeMatch, checkMatchResult } from "../actions"
 import MatchLive from "@/components/MatchLive"
 import CopyButton from "@/components/CopyButton"
 
@@ -36,8 +36,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     .from("matches")
     .select(`
       *,
-      creator:profiles!matches_creator_id_fkey(id, steam_name, avatar_url, xp),
-      opponent:profiles!matches_opponent_id_fkey(id, steam_name, avatar_url, xp),
+      creator:profiles!matches_creator_id_fkey(id, steam_name, avatar_url, xp, steam_id),
+      opponent:profiles!matches_opponent_id_fkey(id, steam_name, avatar_url, xp, steam_id),
       creator_team:teams!matches_creator_team_id_fkey(id, name, tag, size, wins, losses),
       opponent_team:teams!matches_opponent_team_id_fkey(id, name, tag, size, wins, losses)
     `)
@@ -72,7 +72,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     opponentMembers = (data as unknown as TeamMember[]) || []
   }
 
-  // Teams the current user captains (normal only) for accept dropdown
   let myCaptainTeams: { id: string; name: string; tag: string | null; size: number }[] = []
   if (profile?.id) {
     const { data: owned } = await supabase
@@ -185,7 +184,6 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
-        {/* Accept / Cancel high up — more visible */}
         {isOpen && !isCreator && profile && (
           <div className="mb-6 p-4 rounded-2xl border border-[#FF5C00]/40 bg-[#FF5C00]/10">
             {neededSize > 1 ? (
@@ -495,33 +493,45 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           <div className="mt-8 p-5 rounded-2xl border border-[#1c1c28] bg-[#111118]">
             <h3 className="font-bold mb-3">Report result</h3>
             {(isCreator && !match.creator_report) || (isOpponent && !match.opponent_report) ? (
-              <form
-                action={reportResult.bind(null, id)}
-                className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
-              >
-                <select
-                  name="winner"
-                  required
-                  className="flex-1 bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm"
+              <div className="space-y-3">
+                <form
+                  action={reportResult.bind(null, id)}
+                  className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
                 >
-                  <option value="">Who won?</option>
-                  <option value="creator">
-                    {match.creator_team
-                      ? match.creator_team.name
-                      : match.creator?.steam_name}{" "}
-                    won
-                  </option>
-                  <option value="opponent">
-                    {match.opponent_team
-                      ? match.opponent_team.name
-                      : match.opponent?.steam_name}{" "}
-                    won
-                  </option>
-                </select>
-                <button type="submit" className="btn-primary px-6 py-2.5 rounded-xl text-sm font-medium">
-                  Report Result
-                </button>
-              </form>
+                  <select
+                    name="winner"
+                    required
+                    className="flex-1 bg-[#08080d] border border-[#1c1c28] rounded-xl px-4 py-2.5 text-sm"
+                  >
+                    <option value="">Who won?</option>
+                    <option value="creator">
+                      {match.creator_team
+                        ? match.creator_team.name
+                        : match.creator?.steam_name}{" "}
+                      won
+                    </option>
+                    <option value="opponent">
+                      {match.opponent_team
+                        ? match.opponent_team.name
+                        : match.opponent?.steam_name}{" "}
+                      won
+                    </option>
+                  </select>
+                  <button type="submit" className="btn-primary px-6 py-2.5 rounded-xl text-sm font-medium">
+                    Report Result
+                  </button>
+                </form>
+
+                {/* Auto Detect Button */}
+                <form action={checkMatchResult.bind(null, id)}>
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 rounded-xl border border-indigo-500/40 text-indigo-300 hover:bg-indigo-500/10 transition text-sm font-medium"
+                  >
+                    Auto Detect from Deadlock API
+                  </button>
+                </form>
+              </div>
             ) : (
               <div className="px-5 py-2.5 rounded-xl bg-orange-500/10 text-orange-400 text-sm font-medium text-center">
                 You reported • Waiting for opponent
