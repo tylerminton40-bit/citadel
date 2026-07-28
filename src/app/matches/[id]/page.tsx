@@ -574,6 +574,78 @@ export default async function MatchPage({
           </div>
         )}
 
+        {/* How Automatic Reporting Works */}
+        {isAccepted && (
+          <div className="mt-8 p-5 sm:p-6 rounded-2xl border border-[#1c1c28] bg-[#111118]">
+            <h3 className="font-bold text-lg mb-4 text-[#FF5C00]">
+              How Automatic Reporting Works
+            </h3>
+
+            <div className="space-y-5 text-sm text-gray-300">
+              <p>
+                Citadel can try to automatically detect who won using the Deadlock API.
+                This only works if the private match has been ingested into the public database.
+              </p>
+
+              <div>
+                <h4 className="font-semibold text-white mb-2">Best Method (Recommended)</h4>
+                <p className="mb-2">
+                  Install the <strong>Statlocker Companion</strong> app through Overwolf.
+                  It automatically uploads your matches in the background with zero effort.
+                </p>
+                <a
+                  href="https://www.overwolf.com/app/statlocker.gg-statlocker_companion"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-1 px-4 py-2 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-300 hover:bg-indigo-600/30 transition text-sm font-medium"
+                >
+                  Download Statlocker Companion →
+                </a>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-white mb-2">Manual Upload (If needed)</h4>
+                <p className="mb-3">
+                  If the Auto Detect button says “No private match found”, go to{" "}
+                  <a
+                    href="https://statlocker.gg"
+                    target="_blank"
+                    className="underline text-[#FF5C00]"
+                  >
+                    Statlocker.gg
+                  </a>{" "}
+                  and upload your recent matches.
+                </p>
+                <p className="mb-3 text-gray-400 text-xs">
+                  Click the <strong>UPLOAD MATCHES</strong> button at the top of the page:
+                </p>
+                <img
+                  src="/statlocker-upload.png"
+                  alt="Statlocker Upload Matches button"
+                  className="w-full max-w-lg rounded-xl border border-[#1c1c28]"
+                />
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-white mb-2">Other Options</h4>
+                <ul className="list-disc list-inside space-y-1 text-gray-400">
+                  <li>
+                    Use the official Deadlock API ingest tool (runs in the background)
+                  </li>
+                  <li>
+                    Just report the result manually using the dropdown above (always works)
+                  </li>
+                </ul>
+              </div>
+
+              <p className="text-xs text-gray-500 pt-2 border-t border-[#1c1c28]">
+                Note: Private matches are not always available in the API. The manual report
+                is still the most reliable method.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-center mt-8">
           <Link
             href="/matches"
