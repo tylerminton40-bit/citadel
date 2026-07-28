@@ -14,7 +14,6 @@ const QUESTS = [
 export default async function QuestsPage() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
-
   if (!steamId) redirect("/login?next=/quests")
 
   const supabase = createClient(
@@ -32,10 +31,18 @@ export default async function QuestsPage() {
 
   const today = new Date().toISOString().slice(0, 10)
 
-  // Create today's quests for this player if missing
+  // Only create missing quests — never reset progress
   for (const q of QUESTS) {
-    await supabase.from("daily_quests").upsert(
-      {
+    const { data: existing } = await supabase
+      .from("daily_quests")
+      .select("id")
+      .eq("user_id", profile.id)
+      .eq("quest_key", q.key)
+      .eq("quest_date", today)
+      .maybeSingle()
+
+    if (!existing) {
+      await supabase.from("daily_quests").insert({
         user_id: profile.id,
         quest_key: q.key,
         target: q.target,
@@ -43,9 +50,8 @@ export default async function QuestsPage() {
         progress: 0,
         completed: false,
         claimed: false,
-      },
-      { onConflict: "user_id,quest_key,quest_date" }
-    )
+      })
+    }
   }
 
   const { data: quests } = await supabase

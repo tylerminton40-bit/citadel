@@ -37,14 +37,16 @@ export async function claimQuest(questKey: string, xpReward: number) {
     redirect("/quests")
   }
 
-  // Mark claimed
   await supabase
     .from("daily_quests")
     .update({ claimed: true, completed: true })
     .eq("id", quest.id)
 
-  // Give XP
-  await supabase.rpc("increment_xp", { profile_id: profile.id, amount: xpReward })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase.rpc as any)("increment_xp", {
+    profile_id: profile.id,
+    amount: xpReward,
+  })
 
   revalidatePath("/quests")
   revalidatePath("/profile")
