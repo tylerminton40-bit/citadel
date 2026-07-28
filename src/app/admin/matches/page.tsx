@@ -6,6 +6,28 @@ import Link from "next/link"
 
 const ADMIN_STEAM_ID = "76561199480856629"
 
+type MatchRow = {
+  id: string
+  format: string
+  best_of: string
+  ruleset: string
+  region: string
+  status: string
+  private_code: string | null
+  creator_report: string | null
+  opponent_report: string | null
+  accepted_at: string | null
+  completed_at: string | null
+  created_at: string
+  deadlock_match_id: string | null
+  result_source: string | null
+  creator: { steam_name: string; avatar_url: string | null } | null
+  opponent: { steam_name: string; avatar_url: string | null } | null
+  creator_team: { name: string; tag: string | null } | null
+  opponent_team: { name: string; tag: string | null } | null
+  winner: { steam_name: string } | null
+}
+
 export default async function AdminMatchesPage() {
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
@@ -45,12 +67,14 @@ export default async function AdminMatchesPage() {
     .order("created_at", { ascending: false })
     .limit(100)
 
-  const open = matches?.filter((m) => m.status === "open") || []
-  const accepted = matches?.filter((m) => m.status === "accepted") || []
-  const completed = matches?.filter((m) => m.status === "completed") || []
-  const disputed = matches?.filter((m) => m.status === "disputed") || []
+  const allMatches = (matches || []) as unknown as MatchRow[]
 
-  function MatchCard({ match }: { match: any }) {
+  const open = allMatches.filter((m) => m.status === "open")
+  const accepted = allMatches.filter((m) => m.status === "accepted")
+  const completed = allMatches.filter((m) => m.status === "completed")
+  const disputed = allMatches.filter((m) => m.status === "disputed")
+
+  function MatchCard({ match }: { match: MatchRow }) {
     const creatorName = match.creator_team
       ? `${match.creator_team.tag ? `[${match.creator_team.tag}] ` : ""}${match.creator_team.name}`
       : match.creator?.steam_name || "Unknown"
