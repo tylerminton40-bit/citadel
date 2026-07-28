@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
   const { data: messages } = await supabase
     .from("match_messages")
-    .select("*, sender:profiles(steam_name)")
+    .select("*, sender:profiles(steam_name, steam_id)")
     .eq("match_id", matchId)
     .order("created_at", { ascending: true })
 

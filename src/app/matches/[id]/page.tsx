@@ -27,9 +27,11 @@ export default async function MatchPage({
   const { auto } = await searchParams
   const cookieStore = await cookies()
   const steamId = cookieStore.get("citadel_steam_id")?.value
+  const isAdmin = steamId === "76561199480856629"
   if (!steamId) redirect("/login?next=/matches")
 
   const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
@@ -95,9 +97,9 @@ export default async function MatchPage({
     }))
   }
 
-  const { data: messages } = await supabase
+    const { data: messages } = await supabase
     .from("match_messages")
-    .select("*, sender:profiles(steam_name)")
+    .select("*, sender:profiles(steam_name, steam_id)")
     .eq("match_id", id)
     .order("created_at", { ascending: true })
 
@@ -516,13 +518,14 @@ export default async function MatchPage({
           </div>
         ) : null}
 
-        <MatchLive
+           <MatchLive
           matchId={id}
           initialCode={match.private_code}
           initialMessages={messages || []}
           isCreator={!!isCreator}
           isAccepted={isAccepted}
           isParticipant={!!isParticipant}
+          isAdmin={isAdmin}
           ruleset={match.ruleset || "Street Brawl"}
         />
 
