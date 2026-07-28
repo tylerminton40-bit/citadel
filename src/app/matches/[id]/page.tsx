@@ -6,6 +6,7 @@ import Link from "next/link"
 import { cancelMatch, acceptMatch, reportResult, disputeMatch, checkMatchResult } from "../actions"
 import MatchLive from "@/components/MatchLive"
 import CopyButton from "@/components/CopyButton"
+import AutoDetectPoller from "@/components/AutoDetectPoller"
 
 type TeamMember = {
   profile: {
@@ -153,9 +154,20 @@ export default async function MatchPage({
 
   const acceptTeams = myCaptainTeams.filter((t) => t.size === neededSize)
 
+  const hasReports = !!(match.creator_report || match.opponent_report)
+
   return (
     <div className="min-h-screen bg-[#08080d] text-gray-200">
       <Navbar />
+
+      {/* Automatic background detection */}
+      {isAccepted && isCaptain && !hasReports && (
+        <AutoDetectPoller
+          matchId={id}
+          acceptedAt={match.accepted_at}
+          hasReports={hasReports}
+        />
+      )}
 
       <main className="max-w-4xl mx-auto px-3 sm:px-4 py-6 sm:py-12">
         {/* Auto-detect feedback messages */}
@@ -583,8 +595,9 @@ export default async function MatchPage({
 
             <div className="space-y-5 text-sm text-gray-300">
               <p>
-                Citadel can try to automatically detect who won using the Deadlock API.
-                This only works if the private match has been ingested into the public database.
+                After a match has been accepted for 10 minutes, Citadel automatically checks
+                every 2 minutes for the result using the Deadlock API. If it finds the match,
+                it will complete it for you.
               </p>
 
               <div>
@@ -606,7 +619,7 @@ export default async function MatchPage({
               <div>
                 <h4 className="font-semibold text-white mb-2">Manual Upload (If needed)</h4>
                 <p className="mb-3">
-                  If the Auto Detect button says “No private match found”, go to{" "}
+                  If automatic detection fails, go to{" "}
                   <a
                     href="https://statlocker.gg"
                     target="_blank"
